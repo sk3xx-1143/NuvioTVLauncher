@@ -66,7 +66,7 @@ fun InstalledAppsHomeRow(
     actionsFor?.let { app ->
         val index = apps.indexOfFirst { it.packageName == app.packageName }
         if (index < 0) actionsFor = null else InstalledAppActionsDialog(
-            app = app,
+            app = apps[index],
             canMoveEarlier = index > 0,
             canMoveLater = index < apps.lastIndex,
             onOpen = { viewModel.launch(app) },
@@ -74,7 +74,10 @@ fun InstalledAppsHomeRow(
             onMoveLater = { viewModel.move(app, 1) },
             onAppInfo = { viewModel.openAppInfo(app) },
             onRename = { viewModel.rename(app, it) },
-            onDismiss = { actionsFor = null }
+            onDismiss = { actionsFor = null },
+            onToggleHidden = { viewModel.setHidden(app, !apps[index].hidden) },
+            position = index + 1,
+            count = apps.size
         )
     }
 }

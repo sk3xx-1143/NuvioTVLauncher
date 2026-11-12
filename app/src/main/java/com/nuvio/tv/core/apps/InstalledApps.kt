@@ -34,7 +34,9 @@ data class InstalledApp(
     /** True when the app has a TV (leanback) entry; those show their banner. */
     val isTvApp: Boolean,
     /** The name the app itself uses. */
-    val originalLabel: String = label
+    val originalLabel: String = label,
+    /** Taken off the Apps page and the Home row; still listed (dimmed) in the gear panel's Apps. */
+    val hidden: Boolean = false
 )
 
 /**
@@ -56,12 +58,25 @@ class InstalledAppsRepository @Inject constructor(
     private val prefs = context.getSharedPreferences("launcher_apps", Context.MODE_PRIVATE)
     private val savedOrder = MutableStateFlow(AppOrder.decode(prefs.getString(KEY_ORDER, null)))
     private val savedLabels = MutableStateFlow(AppLabels.decode(prefs.getString(KEY_LABELS, null)))
+    private val savedHidden = MutableStateFlow(AppOrder.decode(prefs.getString(KEY_HIDDEN, null)).toSet())
     val order: StateFlow<List<String>> = savedOrder.asStateFlow()
 
-    /** Emits the current list at once, then again whenever the set of apps or their order changes. */
-    val apps: Flow<List<InstalledApp>> = combine(installed(), savedOrder, savedLabels) { list, order, labels ->
-        AppOrder.apply(list.map { app -> labels[app.packageName]?.let { app.copy(label = it) } ?: app }, order)
+    /**
+     * Every app, hidden ones included (marked [InstalledApp.hidden]), in the user's order. The gear
+     * panel's Apps list shows these, so a hidden app can always be found and shown again.
+     */
+    val allApps: Flow<List<InstalledApp>> = combine(installed(), savedOrder, savedLabels, savedHidden) { list, order, labels, hidden ->
+        AppOrder.apply(
+            list.map { app ->
+                val named = labels[app.packageName]?.let { app.copy(label = it) } ?: app
+                if (app.packageName in hidden) named.copy(hidden = true) else named
+            },
+            order
+        )
     }
+
+    /** The apps the Apps page and the Home row show: [allApps] without the hidden ones. */
+    val apps: Flow<List<InstalledApp>> = allApps.map { list -> list.filterNot { it.hidden } }
 
     /** Gives [app] the name [name] on the Apps page and the Home row; blank puts the app's own name back. */
     fun rename(app: InstalledApp, name: String?) {
@@ -70,11 +85,23 @@ class InstalledAppsRepository @Inject constructor(
         savedLabels.value = updated
     }
 
-    /** Moves [app] one place earlier (-1) or later (+1) in the list as it is shown now. */
-    fun move(shown: List<InstalledApp>, app: InstalledApp, delta: Int) {
-        val updated = AppOrder.move(shown.map { it.packageName }, app.packageName, delta) ?: return
+    /**
+     * Moves [app] one place earlier (-1) or later (+1) among [shown], the apps on screen. [all] is every
+     * app in its current order (hidden ones too), so apps that aren't on screen keep their places.
+     */
+    fun move(all: List<InstalledApp>, shown: List<InstalledApp>, app: InstalledApp, delta: Int) {
+        val updated = AppOrder.moveAmong(all.map { it.packageName }, shown.map { it.packageName }, app.packageName, delta) ?: return
         prefs.edit().putString(KEY_ORDER, AppOrder.encode(updated)).apply()
         savedOrder.value = updated
+    }
+
+    /** Takes [app] off the Apps page and the Home row ([hidden] true), or puts it back. */
+    fun setHidden(app: InstalledApp, hidden: Boolean) {
+        val current = savedHidden.value
+        val updated = if (hidden) current + app.packageName else current - app.packageName
+        if (updated == current) return
+        prefs.edit().putString(KEY_HIDDEN, AppOrder.encode(updated.sorted())).apply()
+        savedHidden.value = updated
     }
 
     private fun installed(): Flow<List<InstalledApp>> = callbackFlow {
@@ -96,6 +123,7 @@ class InstalledAppsRepository @Inject constructor(
     private companion object {
         const val KEY_ORDER = "order"
         const val KEY_LABELS = "labels"
+        const val KEY_HIDDEN = "hidden"
     }
 
     private fun query(): List<InstalledApp> {
@@ -170,6 +198,23 @@ object AppOrder {
         val to = from + delta
         if (from < 0 || to !in shown.indices) return null
         return shown.toMutableList().apply { add(to, removeAt(from)) }
+    }
+
+    /**
+     * [all] with [pkg] moved [delta] places among [shown] (a part of [all], in the same order): it lands
+     * next to the app it passes on screen, and apps not in [shown] stay where they are. Null when it
+     * can't move that way. If [all] doesn't hold both apps (not loaded yet), only [shown] is reordered.
+     */
+    fun moveAmong(all: List<String>, shown: List<String>, pkg: String, delta: Int): List<String>? {
+        val from = shown.indexOf(pkg)
+        val to = from + delta
+        if (from < 0 || delta == 0 || to !in shown.indices) return null
+        val passed = shown[to]
+        if (pkg !in all || passed !in all) return move(shown, pkg, delta)
+        val out = all.toMutableList().apply { remove(pkg) }
+        val at = out.indexOf(passed)
+        out.add(if (delta > 0) at + 1 else at, pkg)
+        return out
     }
 }
 

@@ -70,7 +70,7 @@ class AddonPreferences @Inject constructor(
                 parseUrlList(json)
             } else {
                 val legacySet = preferences[legacyUrlsKey] ?: getDefaultAddons()
-                legacySet.toList()
+                LegacyMyListsAddon.removeFrom(legacySet.toList())
             }
         }
     }
@@ -89,7 +89,7 @@ class AddonPreferences @Inject constructor(
         if (prefs[orderedUrlsKey] == null) {
             val legacySet = prefs[legacyUrlsKey] ?: getDefaultAddons()
             ds.edit { preferences ->
-                preferences[orderedUrlsKey] = gson.toJson(legacySet.toList())
+                preferences[orderedUrlsKey] = gson.toJson(LegacyMyListsAddon.removeFrom(legacySet.toList()))
                 preferences.remove(legacyUrlsKey)
             }
         }
@@ -185,14 +185,17 @@ class AddonPreferences @Inject constructor(
             parseUrlList(json)
         } else {
             val legacySet = preferences[legacyUrlsKey] ?: getDefaultAddons()
-            legacySet.toList()
+            LegacyMyListsAddon.removeFrom(legacySet.toList())
         }
     }
 
+    // The old builds' forced My Lists addon is left out here, so it never shows and the next save
+    // (or account push) writes the list without it. See LegacyMyListsAddon.
     private fun parseUrlList(json: String): List<String> {
         return try {
             val type = object : TypeToken<List<String>>() {}.type
-            gson.fromJson(json, type) ?: getDefaultAddons().toList()
+            val parsed: List<String>? = gson.fromJson(json, type)
+            parsed?.let(LegacyMyListsAddon::removeFrom) ?: getDefaultAddons().toList()
         } catch (e: Exception) {
             getDefaultAddons().toList()
         }

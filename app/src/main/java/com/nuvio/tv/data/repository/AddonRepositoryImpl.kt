@@ -7,6 +7,7 @@ import com.google.gson.reflect.TypeToken
 import com.nuvio.tv.core.network.NetworkResult
 import com.nuvio.tv.core.network.safeApiCall
 import com.nuvio.tv.data.local.AddonPreferences
+import com.nuvio.tv.data.local.LegacyMyListsAddon
 import com.nuvio.tv.data.mapper.toDomain
 import com.nuvio.tv.data.remote.api.AddonApi
 import com.nuvio.tv.domain.model.Addon
@@ -352,7 +353,10 @@ class AddonRepositoryImpl(
         remoteUrls: List<String>,
         removeMissingLocal: Boolean = true
     ) {
-        val normalizedRemote = remoteUrls
+        // The 1.1.x builds' forced My Lists addon may still be in the account: never bring it back,
+        // and push the list once it's settled so the account loses it too.
+        val legacyInRemote = remoteUrls.any(LegacyMyListsAddon::isLegacyUrl)
+        val normalizedRemote = LegacyMyListsAddon.removeFrom(remoteUrls)
             .map { canonicalizeUrl(it) }
             .filter { it.isNotBlank() }
             .distinctBy { normalizeUrl(it) }
@@ -404,6 +408,13 @@ class AddonRepositoryImpl(
         val currentCanonical = initialLocalUrls.map { canonicalizeUrl(it) }
         if (finalList != currentCanonical) {
             preferences.setAddonOrder(finalList)
+        }
+
+        if (legacyInRemote) {
+            // Directly, not through triggerRemoteSync: callers mark this as a pull from remote, which
+            // that skips. The push reads the list just saved, which no longer has the addon.
+            Log.i(TAG, "reconcileWithRemoteAddonUrls: removing the old My Lists TV addon from the account")
+            syncScope.launch { addonSyncService.pushToRemote() }
         }
     }
 

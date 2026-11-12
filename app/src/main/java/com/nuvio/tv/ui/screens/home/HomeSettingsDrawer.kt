@@ -67,8 +67,9 @@ import com.nuvio.tv.ui.theme.NuvioTheme
 private enum class DrawerMode { MENU, APPS }
 
 /**
- * The gear at the top right of Home: a side panel with Apps (the installed apps, opened right in the
- * panel), the launcher's settings and Android's own settings. Home closes it.
+ * The gear at the top right of Home: a side panel with Apps (every installed app, opened right in the
+ * panel, hidden ones included and dimmed so they can be shown again), the launcher's settings and
+ * Android's own settings. Home closes it.
  */
 @Composable
 fun HomeSettingsDrawer(
@@ -78,7 +79,7 @@ fun HomeSettingsDrawer(
     appsViewModel: InstalledAppsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val apps by appsViewModel.apps.collectAsStateWithLifecycle()
+    val apps by appsViewModel.allApps.collectAsStateWithLifecycle()
     var mode by remember { mutableStateOf(DrawerMode.MENU) }
     var actionsFor by remember { mutableStateOf<InstalledApp?>(null) }
     val first = remember { FocusRequester() }
@@ -180,16 +181,19 @@ fun HomeSettingsDrawer(
         actionsFor?.let { app ->
             val index = apps.indexOfFirst { it.packageName == app.packageName }
             if (index < 0) actionsFor = null else InstalledAppActionsDialog(
-                app = app,
+                app = apps[index],
                 canMoveEarlier = index > 0,
                 canMoveLater = index < apps.lastIndex,
                 onOpen = { if (appsViewModel.launch(app)) onDismiss() },
-                onMoveEarlier = { appsViewModel.move(app, -1) },
-                onMoveLater = { appsViewModel.move(app, 1) },
+                onMoveEarlier = { appsViewModel.move(app, -1, amongAll = true) },
+                onMoveLater = { appsViewModel.move(app, 1, amongAll = true) },
                 onAppInfo = { appsViewModel.openAppInfo(app) },
-            onRename = { appsViewModel.rename(app, it) },
+                onRename = { appsViewModel.rename(app, it) },
                 onDismiss = { actionsFor = null },
-                onHome = onDismiss
+                onHome = onDismiss,
+                onToggleHidden = { appsViewModel.setHidden(app, !apps[index].hidden) },
+                position = index + 1,
+                count = apps.size
             )
         }
     }
