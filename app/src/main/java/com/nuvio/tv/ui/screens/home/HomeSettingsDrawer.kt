@@ -169,7 +169,8 @@ fun HomeSettingsDrawer(
                                         onClick = { if (appsViewModel.launch(app)) onDismiss() },
                                         onLongClick = { actionsFor = app },
                                         modifier = if (app == apps.first()) Modifier.focusRequester(first) else Modifier,
-                                        width = 158.dp
+                                        width = 158.dp,
+                                        showHiddenBadges = true
                                     )
                                 }
                             }
