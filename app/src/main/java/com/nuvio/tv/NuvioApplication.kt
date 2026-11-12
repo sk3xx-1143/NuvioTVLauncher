@@ -86,8 +86,10 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     override fun onCreate() {
         // Before super.onCreate(): Hilt creates injected services there, and the budget is read once.
+        com.nuvio.tv.core.launcher.StartupTiming.mark(this, "Application.onCreate start")
         MemoryBudget.init(this)
         super.onCreate()
+        com.nuvio.tv.core.launcher.StartupTiming.mark(this, "dependency graph ready (super.onCreate)")
         PluginRuntimeHooks.onApplicationCreate(this)
         // Live TV fork: VPN progress lines go into the start-up report.
         com.nuvio.vpn.android.VpnPlaybackProtection.diagnostics =
@@ -97,6 +99,7 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
         val tag = getSharedPreferences("app_locale", Context.MODE_PRIVATE)
             .getString("locale_tag", null)
         LocaleCache.localeTag = tag ?: ""
+        com.nuvio.tv.core.launcher.StartupTiming.mark(this, "Application.onCreate done")
         // After a restart the launcher's accessibility service can only take over from the TV's own launcher
         // once this process has finished starting (about 15 s on a Chromecast with Google TV while it boots).
         // Anything the first frame and the takeover do not need runs on a background thread instead.

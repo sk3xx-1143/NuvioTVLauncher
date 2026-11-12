@@ -80,7 +80,11 @@ fun SportsHost(navController: NavController) {
         runCatching { EntryPointAccessors.fromApplication(context.applicationContext, SportsEntryPoint::class.java) }.getOrNull()
     } ?: return
     val repo = remember { entry.sportsRepository() }
-    LaunchedEffect(Unit) { repo.start() }
+    // Sports only starts while its page is shown. Reading the saved scores is a lot of work on a slow box, and
+    // there is nothing to update, remind or alert about while Sports is off. (The repository is also started by
+    // the Sports page and by a game link, whenever those are opened.)
+    val showSports by repo.settings.collectAsState()
+    LaunchedEffect(showSports.showInSidebar) { if (repo.savedSettings().showInSidebar) repo.start() }
     // Only update while the app is in front (TV boxes keep apps alive in the background for days).
     val owner = LocalLifecycleOwner.current
     DisposableEffect(owner) {
@@ -94,7 +98,7 @@ fun SportsHost(navController: NavController) {
         owner.lifecycle.addObserver(obs)
         onDispose { owner.lifecycle.removeObserver(obs) }
     }
-    val settings by repo.settings.collectAsState()
+    val settings = showSports
     if (!settings.showInSidebar) return
 
     // ---- reminders

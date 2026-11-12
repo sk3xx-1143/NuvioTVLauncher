@@ -74,6 +74,7 @@ fun InstalledAppsHomeRow(
             onMoveLater = { viewModel.move(app, 1, com.nuvio.tv.core.apps.AppsPlace.HOME) },
             onAppInfo = { viewModel.openAppInfo(app) },
             onRename = { viewModel.rename(app, it) },
+            iconChooser = viewModel.iconChooser(app),
             onDismiss = { actionsFor = null },
             onTogglePage = { viewModel.setHidden(app, com.nuvio.tv.core.apps.AppsPlace.PAGE, !apps[index].hiddenOnPage) },
             onToggleHome = { viewModel.setHidden(app, com.nuvio.tv.core.apps.AppsPlace.HOME, !apps[index].hiddenOnHome) },

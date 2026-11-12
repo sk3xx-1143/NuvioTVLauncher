@@ -36,8 +36,9 @@ import com.nuvio.tv.ui.theme.NuvioTheme
 
 /**
  * Long-press on an app: open it, move it (the Apps page and the Home row share one order), rename it,
- * hide it from the Apps page or the Home row (each on its own, per profile), or see its system page. "Move" picks the app up: ◀ and ▶ walk it
- * along the list (holding one keeps it going) and OK or Back puts it down.
+ * change its icon, hide it from the Apps page or the Home row (each on its own, per profile), or see
+ * its system page. "Move" picks the app up: ◀ and ▶ walk it along the list (holding one keeps it
+ * going) and OK or Back puts it down.
  */
 @Composable
 fun InstalledAppActionsDialog(
@@ -49,6 +50,8 @@ fun InstalledAppActionsDialog(
     onMoveLater: () -> Unit,
     onAppInfo: () -> Unit,
     onRename: (String?) -> Unit,
+    /** When given, a "Change icon" button opens the icon picker for this app. */
+    iconChooser: com.nuvio.tv.core.apps.AppIconChooser? = null,
     onDismiss: () -> Unit,
     /** Home was pressed: close this and whatever opened it. */
     onHome: () -> Unit = onDismiss,
@@ -66,9 +69,13 @@ fun InstalledAppActionsDialog(
     // including its release, until a fresh press arrives, so letting go doesn't pick the first option.
     var ready by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf(false) }
+    var choosingIcon by remember { mutableStateOf(false) }
     var moving by remember { mutableStateOf(false) }
     LaunchedEffect(moving) { runCatching { if (moving) done.requestFocus() else first.requestFocus() } }
     if (renaming) RenameDialog(app = app, onSave = onRename, onDismiss = { renaming = false })
+    if (choosingIcon && iconChooser != null) {
+        AppIconChoiceDialog(app = app, chooser = iconChooser, onDismiss = { choosingIcon = false })
+    }
     // Back while moving puts the app down and goes back to the menu; otherwise it closes the menu.
     Dialog(onDismissRequest = { if (moving) moving = false else onDismiss() }) {
         Column(
@@ -144,6 +151,11 @@ fun InstalledAppActionsDialog(
                 }
                 Button(onClick = { renaming = true }, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.app_action_rename))
+                }
+                if (iconChooser != null) {
+                    Button(onClick = { choosingIcon = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.app_action_change_icon))
+                    }
                 }
                 if (onTogglePage != null) {
                     Button(onClick = onTogglePage, modifier = Modifier.fillMaxWidth()) {

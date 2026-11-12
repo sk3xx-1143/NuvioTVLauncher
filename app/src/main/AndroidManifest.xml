@@ -28,6 +28,58 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
+        <!-- Icon Pack and Theme discovery on Android 11+ -->
+        <intent>
+            <action android:name="org.adw.launcher.THEMES" />
+        </intent>
+        <intent>
+            <action android:name="com.novalauncher.THEME" />
+        </intent>
+        <intent>
+            <action android:name="com.gau.go.launcherex.theme" />
+        </intent>
+        <intent>
+            <action android:name="com.fede.launcher.THEME_ICONPACK" />
+        </intent>
+        <intent>
+            <action android:name="com.teslacoilsw.launcher.THEME" />
+        </intent>
+        <intent>
+            <action android:name="com.anddoes.launcher.THEME" />
+        </intent>
+        <intent>
+            <action android:name="com.dlto.atom.launcher.THEME" />
+        </intent>
+        <intent>
+            <action android:name="com.actionlauncher.THEME" />
+        </intent>
+        <intent>
+            <action android:name="mobi.bbase.ahome.THEME" />
+        </intent>
+        <intent>
+            <action android:name="com.sonymobile.home.ICON_PACK" />
+        </intent>
+        <intent>
+            <action android:name="com.spocky.projengmenu.ACTION_THEME" />
+        </intent>
+        <intent>
+            <action android:name="com.spocky.projengmenu.THEME" />
+        </intent>
+        <intent>
+            <action android:name="com.spocky.projectivy.THEME" />
+        </intent>
+        <intent>
+            <action android:name="com.spocky.projectivy.ICON_PACK" />
+        </intent>
+        <intent>
+            <action android:name="com.projectivy.intent.action.ICON_PACK" />
+        </intent>
+        <intent>
+            <action android:name="com.projectivy.theme.ICON_PACK" />
+        </intent>
+        <intent>
+            <action android:name="org.adw.launcher.icons.ACTION_PICK_ICON" />
+        </intent>
     </queries>
 
     <uses-permission android:name="android.permission.INTERNET" />

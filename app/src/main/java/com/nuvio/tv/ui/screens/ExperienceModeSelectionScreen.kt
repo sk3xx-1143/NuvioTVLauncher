@@ -51,12 +51,19 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class ExperienceModeSelectionViewModel @Inject constructor(
     private val experienceModeDataStore: ExperienceModeDataStore,
-    private val layoutPreferenceDataStore: LayoutPreferenceDataStore
+    private val layoutPreferenceDataStore: LayoutPreferenceDataStore,
+    private val liveTvPreferences: com.nuvio.tv.livetv.data.LiveTvPreferences,
+    private val sportsRepository: com.nuvio.tv.livetv.sports.SportsRepository
 ) : ViewModel() {
     suspend fun choose(mode: ExperienceMode) {
         experienceModeDataStore.setMode(mode)
         if (mode == ExperienceMode.ESSENTIAL) {
             layoutPreferenceDataStore.setLayout(HomeLayout.MODERN)
+            // A new Essential setup starts without Live TV and Sports: both are empty until a playlist is added or
+            // teams are followed, and while they are off nothing of them loads in the background. They are one
+            // switch each in Settings, Menu and Features. Only done here, when the choice is first made.
+            liveTvPreferences.updateSettings { it.copy(showInSidebar = false) }
+            sportsRepository.updateSettings { it.copy(showInSidebar = false) }
         }
     }
 }

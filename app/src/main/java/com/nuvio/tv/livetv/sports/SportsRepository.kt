@@ -71,6 +71,12 @@ class SportsRepository @Inject constructor(
         .map { SportsSettings.fromJson(it) }
         .stateIn(scope, SharingStarted.Eagerly, SportsSettings())
 
+    /**
+     * The Sports settings as saved. [settings] starts as the defaults (page shown) until the saved copy is read,
+     * so anything that must not run while Sports is switched off has to ask this instead.
+     */
+    suspend fun savedSettings(): SportsSettings = SportsSettings.fromJson(prefs.sportsSettingsJson.first())
+
     val follows: StateFlow<SportsFollows> = prefs.sportsMineJson
         .map { SportsFollows.fromJson(it) }
         .stateIn(scope, SharingStarted.Eagerly, SportsFollows())

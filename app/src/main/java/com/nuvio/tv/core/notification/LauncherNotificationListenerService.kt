@@ -55,23 +55,49 @@ class LauncherNotificationListenerService : NotificationListenerService() {
             }.getOrDefault(false)
         }
 
+        /** True when this app may switch its own notification access on (phone setup granted WRITE_SECURE_SETTINGS). */
+        fun canEnableDirectly(context: Context): Boolean =
+            com.nuvio.tv.core.launcher.AccessibilityWatchdog.canWriteSecureSettings(context)
+
+        /**
+         * Adds this app to the enabled notification listeners without the Settings page. The TV's Notification access
+         * page can't be driven with the remote on some devices (Chromecast with Google TV: nothing gets focus and any
+         * key closes it), so this is the only way there. Returns whether access is on afterwards.
+         */
+        fun enableDirectly(context: Context): Boolean {
+            if (isAccessGranted(context)) return true
+            if (!canEnableDirectly(context)) return false
+            runCatching {
+                val me = android.content.ComponentName(context, LauncherNotificationListenerService::class.java).flattenToString()
+                val resolver = context.contentResolver
+                val current = Settings.Secure.getString(resolver, "enabled_notification_listeners").orEmpty()
+                if (current.split(':').none { it == me }) {
+                    Settings.Secure.putString(resolver, "enabled_notification_listeners", if (current.isEmpty()) me else "$current:$me")
+                }
+            }.onFailure { Log.w(TAG, "Could not enable notification access directly", it) }
+            return isAccessGranted(context)
+        }
+
         /** Straight to this app's own toggle (Android 11+), otherwise the Notification access list. */
         fun openAccessSettings(context: Context) {
+            if (enableDirectly(context)) return
             com.nuvio.tv.core.launcher.LauncherSetup.markAwaitingSettings(context)
             val listener = android.content.ComponentName(context, LauncherNotificationListenerService::class.java)
             val opened = android.os.Build.VERSION.SDK_INT >= 30 && runCatching {
                 context.startActivity(
                     Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
                         .putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, listener.flattenToString())
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                 )
             }.isSuccess
-            // Own task: otherwise a Settings screen the user left open earlier (e.g. Developer options) is
-            // reused, and Back from here lands on that instead of returning to this app.
+            // A fresh Settings task (what Projectivy does). Reusing one the user left open earlier (e.g. Developer
+            // options) sent Back to that page, and MULTIPLE_TASK fixed Back but left the remote dead on the
+            // Notification access page (no focus, Down/OK do nothing). Tested on Chromecast with Google TV:
+            // with CLEAR_TASK the remote works there and one Back returns to this app.
             if (!opened) runCatching {
                 context.startActivity(
                     Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                 )
             }
         }

@@ -12,6 +12,7 @@
     <string name="live_tv_list_channel_no_lists">No lists found. Install an addon with catalogs, or make a collection.</string>
     <string name="live_tv_list_channel_save">Save</string>
     <string name="live_tv_list_channel_delete">Delete channel</string>
+    <string name="live_tv_list_channel_synced">from My Lists (edit it on mylistsaddon.com)</string>
     <string name="live_tv_list_channel_none">No list channels yet</string>
     <string name="live_tv_list_channel_summary">%1$d lists</string>
     <string name="live_tv_list_finding">Finding a stream for %1$s…</string>

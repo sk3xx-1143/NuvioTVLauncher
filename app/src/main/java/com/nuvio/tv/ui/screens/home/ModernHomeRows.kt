@@ -528,6 +528,7 @@ internal fun ModernRowSection(
             onMoveLater = { appsViewModel.move(app, 1, com.nuvio.tv.core.apps.AppsPlace.HOME) },
             onAppInfo = { appsViewModel.openAppInfo(app) },
             onRename = { appsViewModel.rename(app, it) },
+            iconChooser = appsViewModel.iconChooser(app),
             onDismiss = { contextMenuApp = null },
             onTogglePage = { appsViewModel.setHidden(app, com.nuvio.tv.core.apps.AppsPlace.PAGE, !shown[index].hiddenOnPage) },
             onToggleHome = { appsViewModel.setHidden(app, com.nuvio.tv.core.apps.AppsPlace.HOME, !shown[index].hiddenOnHome) },

@@ -98,8 +98,12 @@ internal fun ListChannelsDialog(onDismiss: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm)
         ) {
             items(channels, key = { it.id }) { channel ->
-                OutlinedButton(onClick = { editing = channel }, modifier = Modifier.fillMaxWidth()) {
-                    Text("${channel.name}  ·  " + stringResource(R.string.live_tv_list_channel_summary, channel.refs.size))
+                // A channel made on mylistsaddon.com is edited there; here it can only be looked at.
+                OutlinedButton(onClick = { editing = channel }, enabled = !channel.isSynced, modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        if (channel.isSynced) "${channel.name}  ·  " + stringResource(R.string.live_tv_list_channel_synced)
+                        else "${channel.name}  ·  " + stringResource(R.string.live_tv_list_channel_summary, channel.refs.size)
+                    )
                 }
             }
         }

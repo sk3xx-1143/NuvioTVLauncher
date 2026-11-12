@@ -44,6 +44,7 @@ class LauncherAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        StartupTiming.mark(this, "accessibility service connected")
         activeServiceRef = java.lang.ref.WeakReference(this)
         boundAtElapsed = SystemClock.elapsedRealtime()
         delivery = HomeFallbackPolicy()
@@ -217,6 +218,7 @@ class LauncherAccessibilityService : AccessibilityService() {
                 startActivity(intent)
             }
             delivery.onLaunch(SystemClock.uptimeMillis())
+            StartupTiming.mark(this, "takeover: startActivity done")
             Log.i(TAG, "Takeover: started the launcher ${SystemClock.elapsedRealtime() - boundAtElapsed} ms after the service bound")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to launch home activity", e)
@@ -266,15 +268,17 @@ class LauncherAccessibilityService : AccessibilityService() {
                 context.startActivity(
                     Intent("android.settings.ACCESSIBILITY_DETAILS_SETTINGS")
                         .putExtra(Intent.EXTRA_COMPONENT_NAME, service.flattenToString())
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                 )
             }.isSuccess
-            // Own task: otherwise a Settings screen the user left open earlier (e.g. Developer options) is
-            // reused, and Back from here lands on that instead of returning to this app.
+            // A fresh Settings task (what Projectivy does). Reusing one the user left open earlier (e.g. Developer
+            // options) sent Back to that page, and MULTIPLE_TASK fixed Back but left the remote dead on the
+            // Notification access page (no focus, Down/OK do nothing). Tested on Chromecast with Google TV:
+            // with CLEAR_TASK the remote works there and one Back returns to this app.
             if (!opened) runCatching {
                 context.startActivity(
                     Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                 )
             }
         }

@@ -190,6 +190,7 @@ fun HomeSettingsDrawer(
                 onMoveLater = { appsViewModel.move(app, 1, place = null) },
                 onAppInfo = { appsViewModel.openAppInfo(app) },
                 onRename = { appsViewModel.rename(app, it) },
+                iconChooser = appsViewModel.iconChooser(app),
                 onDismiss = { actionsFor = null },
                 onHome = onDismiss,
                 onTogglePage = { appsViewModel.setHidden(app, com.nuvio.tv.core.apps.AppsPlace.PAGE, !apps[index].hiddenOnPage) },
