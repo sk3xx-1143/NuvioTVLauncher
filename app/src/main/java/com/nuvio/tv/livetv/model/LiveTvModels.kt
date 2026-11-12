@@ -414,6 +414,11 @@ data class LiveTvSettings(
     val sideMenuLine: Boolean = true,
     /** Side menu: draw everything a little smaller when the pages don't fit, instead of scrolling. */
     val sideMenuFit: Boolean = true,
+    /**
+     * The profile picture always at the top of the side menu: also while the menu is closed, and
+     * with only one profile (selecting it opens the profile picker).
+     */
+    val sideMenuProfile: Boolean = false,
     /** Calendar: your shows' next episodes in Home's Upcoming row. */
     val calendarUpcomingRow: Boolean = true,
     /** Calendar: a "new episode" card in Continue Watching for shows you rang the bell on. */

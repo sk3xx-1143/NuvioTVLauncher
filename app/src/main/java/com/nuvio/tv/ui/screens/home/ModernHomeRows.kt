@@ -2,6 +2,7 @@
 
 package com.nuvio.tv.ui.screens.home
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.Row
 import com.nuvio.tv.ui.theme.NuvioTheme
 
@@ -512,21 +513,27 @@ internal fun ModernRowSection(
     // Launcher: the Apps row. Long-press on an app opens its menu (open, rename, move, app info).
     val appsViewModel: com.nuvio.tv.core.apps.InstalledAppsViewModel? =
         if (row.key == com.nuvio.tv.core.apps.INSTALLED_APPS_CATALOG_KEY) androidx.hilt.navigation.compose.hiltViewModel() else null
+    // Moves are worked out from the view model's app lists, so keep them live while this row shows.
+    appsViewModel?.homeApps?.collectAsStateWithLifecycle()
     var contextMenuApp by remember { mutableStateOf<com.nuvio.tv.core.apps.InstalledApp?>(null) }
     contextMenuApp?.let { app ->
         val shown = row.items.list.mapNotNull { (it.payload as? ModernPayload.InstalledApp)?.app }
         val index = shown.indexOfFirst { it.packageName == app.packageName }
         if (appsViewModel == null || index < 0) contextMenuApp = null else com.nuvio.tv.ui.components.InstalledAppActionsDialog(
-            app = app,
+            app = shown[index],
             canMoveEarlier = index > 0,
             canMoveLater = index < shown.lastIndex,
             onOpen = { appsViewModel.launch(app) },
-            onMoveEarlier = { appsViewModel.move(app, -1) },
-            onMoveLater = { appsViewModel.move(app, 1) },
+            onMoveEarlier = { appsViewModel.move(app, -1, com.nuvio.tv.core.apps.AppsPlace.HOME) },
+            onMoveLater = { appsViewModel.move(app, 1, com.nuvio.tv.core.apps.AppsPlace.HOME) },
             onAppInfo = { appsViewModel.openAppInfo(app) },
             onRename = { appsViewModel.rename(app, it) },
             iconChooser = appsViewModel.iconChooser(app),
-            onDismiss = { contextMenuApp = null }
+            onDismiss = { contextMenuApp = null },
+            onTogglePage = { appsViewModel.setHidden(app, com.nuvio.tv.core.apps.AppsPlace.PAGE, !shown[index].hiddenOnPage) },
+            onToggleHome = { appsViewModel.setHidden(app, com.nuvio.tv.core.apps.AppsPlace.HOME, !shown[index].hiddenOnHome) },
+            position = index + 1,
+            count = shown.size
         )
     }
 

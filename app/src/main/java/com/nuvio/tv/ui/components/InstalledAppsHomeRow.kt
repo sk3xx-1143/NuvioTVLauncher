@@ -37,7 +37,7 @@ fun InstalledAppsHomeRow(
 ) {
     // Folder pages and other screens reuse the home rows' layout; the Apps row is only for Home itself.
     if (!com.nuvio.tv.livetv.home.LocalLiveTvHomeActions.current.onHome) return
-    val apps by viewModel.apps.collectAsStateWithLifecycle()
+    val apps by viewModel.homeApps.collectAsStateWithLifecycle()
     var actionsFor by remember { mutableStateOf<com.nuvio.tv.core.apps.InstalledApp?>(null) }
     if (apps.isEmpty()) return
 
@@ -66,16 +66,20 @@ fun InstalledAppsHomeRow(
     actionsFor?.let { app ->
         val index = apps.indexOfFirst { it.packageName == app.packageName }
         if (index < 0) actionsFor = null else InstalledAppActionsDialog(
-            app = app,
+            app = apps[index],
             canMoveEarlier = index > 0,
             canMoveLater = index < apps.lastIndex,
             onOpen = { viewModel.launch(app) },
-            onMoveEarlier = { viewModel.move(app, -1) },
-            onMoveLater = { viewModel.move(app, 1) },
+            onMoveEarlier = { viewModel.move(app, -1, com.nuvio.tv.core.apps.AppsPlace.HOME) },
+            onMoveLater = { viewModel.move(app, 1, com.nuvio.tv.core.apps.AppsPlace.HOME) },
             onAppInfo = { viewModel.openAppInfo(app) },
             onRename = { viewModel.rename(app, it) },
             iconChooser = viewModel.iconChooser(app),
-            onDismiss = { actionsFor = null }
+            onDismiss = { actionsFor = null },
+            onTogglePage = { viewModel.setHidden(app, com.nuvio.tv.core.apps.AppsPlace.PAGE, !apps[index].hiddenOnPage) },
+            onToggleHome = { viewModel.setHidden(app, com.nuvio.tv.core.apps.AppsPlace.HOME, !apps[index].hiddenOnHome) },
+            position = index + 1,
+            count = apps.size
         )
     }
 }

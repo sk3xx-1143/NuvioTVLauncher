@@ -4,6 +4,7 @@ package com.nuvio.tv.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -22,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.tv.material3.Button
@@ -33,9 +35,10 @@ import com.nuvio.tv.core.apps.InstalledApp
 import com.nuvio.tv.ui.theme.NuvioTheme
 
 /**
- * Long-press on an app: open it, move it earlier or later (the Apps page and the Home row share
- * one order), or see its system page (Uninstall, Force stop). Moves keep the dialog open so an app
- * can be walked along the row.
+ * Long-press on an app: open it, move it (the Apps page and the Home row share one order), rename it,
+ * change its icon, hide it from the Apps page or the Home row (each on its own, per profile), or see
+ * its system page. "Move" picks the app up: ◀ and ▶ walk it along the list (holding one keeps it
+ * going) and OK or Back puts it down.
  */
 @Composable
 fun InstalledAppActionsDialog(
@@ -51,20 +54,30 @@ fun InstalledAppActionsDialog(
     iconChooser: com.nuvio.tv.core.apps.AppIconChooser? = null,
     onDismiss: () -> Unit,
     /** Home was pressed: close this and whatever opened it. */
-    onHome: () -> Unit = onDismiss
+    onHome: () -> Unit = onDismiss,
+    /** Hides the app from the Apps page (side menu), or shows it there again. Null leaves the button out. */
+    onTogglePage: (() -> Unit)? = null,
+    /** Hides the app from the Home row, or shows it there again. Null leaves the button out. */
+    onToggleHome: (() -> Unit)? = null,
+    /** The app's place in the list (from 1) and the list's size, shown while moving. */
+    position: Int = 0,
+    count: Int = 0
 ) {
     val first = remember { FocusRequester() }
+    val done = remember { FocusRequester() }
     // The menu opens while the select key is still held down (that is the long-press). Ignore that key,
     // including its release, until a fresh press arrives, so letting go doesn't pick the first option.
     var ready by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf(false) }
     var choosingIcon by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
+    var moving by remember { mutableStateOf(false) }
+    LaunchedEffect(moving) { runCatching { if (moving) done.requestFocus() else first.requestFocus() } }
     if (renaming) RenameDialog(app = app, onSave = onRename, onDismiss = { renaming = false })
     if (choosingIcon && iconChooser != null) {
         AppIconChoiceDialog(app = app, chooser = iconChooser, onDismiss = { choosingIcon = false })
     }
-    Dialog(onDismissRequest = onDismiss) {
+    // Back while moving puts the app down and goes back to the menu; otherwise it closes the menu.
+    Dialog(onDismissRequest = { if (moving) moving = false else onDismiss() }) {
         Column(
             modifier = Modifier
                 .onPreviewKeyEvent { event ->
@@ -72,6 +85,21 @@ fun InstalledAppActionsDialog(
                     if (native.keyCode == AndroidKeyEvent.KEYCODE_HOME) {
                         if (native.action == AndroidKeyEvent.ACTION_UP) onHome()
                         return@onPreviewKeyEvent true
+                    }
+                    if (moving) {
+                        when (native.keyCode) {
+                            // Every press, and every repeat while held, moves the app one place.
+                            AndroidKeyEvent.KEYCODE_DPAD_LEFT -> {
+                                if (native.action == AndroidKeyEvent.ACTION_DOWN && canMoveEarlier) onMoveEarlier()
+                                return@onPreviewKeyEvent true
+                            }
+                            AndroidKeyEvent.KEYCODE_DPAD_RIGHT -> {
+                                if (native.action == AndroidKeyEvent.ACTION_DOWN && canMoveLater) onMoveLater()
+                                return@onPreviewKeyEvent true
+                            }
+                            // Focus stays on Done, so OK always puts the app down.
+                            AndroidKeyEvent.KEYCODE_DPAD_UP, AndroidKeyEvent.KEYCODE_DPAD_DOWN -> return@onPreviewKeyEvent true
+                        }
                     }
                     if (native.keyCode == AndroidKeyEvent.KEYCODE_DPAD_CENTER ||
                         native.keyCode == AndroidKeyEvent.KEYCODE_ENTER ||
@@ -89,29 +117,62 @@ fun InstalledAppActionsDialog(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(app.label, style = MaterialTheme.typography.titleLarge, color = NuvioTheme.colors.TextPrimary, maxLines = 1)
-            Button(onClick = { onDismiss(); onOpen() }, modifier = Modifier.fillMaxWidth().focusRequester(first)) {
-                Text(stringResource(R.string.app_action_open))
-            }
-            Button(onClick = onMoveEarlier, enabled = canMoveEarlier, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.app_action_move_earlier))
-            }
-            Button(onClick = onMoveLater, enabled = canMoveLater, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.app_action_move_later))
-            }
-            Button(onClick = { renaming = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.app_action_rename))
-            }
-            if (iconChooser != null) {
-                Button(onClick = { choosingIcon = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.app_action_change_icon))
+            if (moving) {
+                Text(
+                    stringResource(R.string.app_move_title, app.label),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = NuvioTheme.colors.TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (position > 0 && count > 0) {
+                    Text(stringResource(R.string.app_move_position, position, count), style = MaterialTheme.typography.bodyMedium, color = NuvioTheme.colors.TextPrimary)
                 }
-            }
-            Button(onClick = { onDismiss(); onAppInfo() }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.app_action_info))
-            }
-            Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                Text(stringResource(R.string.self_setup_close))
+                Text(stringResource(R.string.app_move_hint), style = MaterialTheme.typography.bodyMedium, color = NuvioTheme.colors.TextSecondary)
+                // For touch and mouse; on a remote ◀ and ▶ do the same.
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                    Button(onClick = onMoveEarlier, enabled = canMoveEarlier, modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.app_action_move_earlier))
+                    }
+                    Button(onClick = onMoveLater, enabled = canMoveLater, modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.app_action_move_later))
+                    }
+                }
+                Button(onClick = { moving = false }, modifier = Modifier.fillMaxWidth().focusRequester(done)) {
+                    Text(stringResource(R.string.app_move_done))
+                }
+            } else {
+                Text(app.label, style = MaterialTheme.typography.titleLarge, color = NuvioTheme.colors.TextPrimary, maxLines = 1)
+                Button(onClick = { onDismiss(); onOpen() }, modifier = Modifier.fillMaxWidth().focusRequester(first)) {
+                    Text(stringResource(R.string.app_action_open))
+                }
+                Button(onClick = { moving = true }, enabled = canMoveEarlier || canMoveLater, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.app_action_move))
+                }
+                Button(onClick = { renaming = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.app_action_rename))
+                }
+                if (iconChooser != null) {
+                    Button(onClick = { choosingIcon = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.app_action_change_icon))
+                    }
+                }
+                if (onTogglePage != null) {
+                    Button(onClick = onTogglePage, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(if (app.hiddenOnPage) R.string.app_action_show_page else R.string.app_action_hide_page))
+                    }
+                }
+                if (onToggleHome != null) {
+                    Button(onClick = onToggleHome, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(if (app.hiddenOnHome) R.string.app_action_show_home else R.string.app_action_hide_home))
+                    }
+                }
+                Button(onClick = { onDismiss(); onAppInfo() }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.app_action_info))
+                }
+                Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                    Text(stringResource(R.string.self_setup_close))
+                }
             }
         }
     }

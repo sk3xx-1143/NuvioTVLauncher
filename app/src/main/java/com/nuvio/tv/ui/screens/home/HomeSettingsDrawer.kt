@@ -67,8 +67,9 @@ import com.nuvio.tv.ui.theme.NuvioTheme
 private enum class DrawerMode { MENU, APPS }
 
 /**
- * The gear at the top right of Home: a side panel with Apps (the installed apps, opened right in the
- * panel), the launcher's settings and Android's own settings. Home closes it.
+ * The gear at the top right of Home: a side panel with Apps (every installed app, opened right in the
+ * panel, hidden ones included so they can be shown again), the launcher's settings and
+ * Android's own settings. Home closes it.
  */
 @Composable
 fun HomeSettingsDrawer(
@@ -78,7 +79,7 @@ fun HomeSettingsDrawer(
     appsViewModel: InstalledAppsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val apps by appsViewModel.apps.collectAsStateWithLifecycle()
+    val apps by appsViewModel.allApps.collectAsStateWithLifecycle()
     var mode by remember { mutableStateOf(DrawerMode.MENU) }
     var actionsFor by remember { mutableStateOf<InstalledApp?>(null) }
     val first = remember { FocusRequester() }
@@ -168,7 +169,8 @@ fun HomeSettingsDrawer(
                                         onClick = { if (appsViewModel.launch(app)) onDismiss() },
                                         onLongClick = { actionsFor = app },
                                         modifier = if (app == apps.first()) Modifier.focusRequester(first) else Modifier,
-                                        width = 158.dp
+                                        width = 158.dp,
+                                        showHiddenBadges = true
                                     )
                                 }
                             }
@@ -180,17 +182,21 @@ fun HomeSettingsDrawer(
         actionsFor?.let { app ->
             val index = apps.indexOfFirst { it.packageName == app.packageName }
             if (index < 0) actionsFor = null else InstalledAppActionsDialog(
-                app = app,
+                app = apps[index],
                 canMoveEarlier = index > 0,
                 canMoveLater = index < apps.lastIndex,
                 onOpen = { if (appsViewModel.launch(app)) onDismiss() },
-                onMoveEarlier = { appsViewModel.move(app, -1) },
-                onMoveLater = { appsViewModel.move(app, 1) },
+                onMoveEarlier = { appsViewModel.move(app, -1, place = null) },
+                onMoveLater = { appsViewModel.move(app, 1, place = null) },
                 onAppInfo = { appsViewModel.openAppInfo(app) },
-            onRename = { appsViewModel.rename(app, it) },
+                onRename = { appsViewModel.rename(app, it) },
                 iconChooser = appsViewModel.iconChooser(app),
                 onDismiss = { actionsFor = null },
-                onHome = onDismiss
+                onHome = onDismiss,
+                onTogglePage = { appsViewModel.setHidden(app, com.nuvio.tv.core.apps.AppsPlace.PAGE, !apps[index].hiddenOnPage) },
+                onToggleHome = { appsViewModel.setHidden(app, com.nuvio.tv.core.apps.AppsPlace.HOME, !apps[index].hiddenOnHome) },
+                position = index + 1,
+                count = apps.size
             )
         }
     }

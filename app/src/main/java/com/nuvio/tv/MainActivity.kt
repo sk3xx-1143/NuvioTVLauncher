@@ -43,6 +43,7 @@ import com.nuvio.tv.livetv.ui.shrinkToFit
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -1389,7 +1390,9 @@ open class MainActivity : ComponentActivity() {
                                 if (id in pages.LIVE_FAMILY) lineDone = true
                                 add(if (line) item.copy(sectionStart = true) else item)
                             }
-                            add(
+                            // Settings can leave the menu (Menu & Features) while Home is in it: the gear
+                            // at the top of Home opens it then. Without Home it always stays.
+                            if (pages.SETTINGS !in hiddenPages || homeHidden) add(
                                 DrawerItem(
                                     route = Screen.Settings.route,
                                     label = strNavSettings,
@@ -1495,7 +1498,7 @@ open class MainActivity : ComponentActivity() {
                                         activeProfileName = activeProfile?.name ?: "",
                                         activeProfileColorHex = activeProfile?.avatarColorHex ?: "#1E88E5",
                                         activeProfileAvatarImageUrl = activeProfileAvatarImageUrl,
-                                        showProfileSelector = profiles.size > 1,
+                                        showProfileSelector = profiles.size > 1 || liveTvSettingsNow.sideMenuProfile,
                                         onSwitchProfile = handleSwitchProfile,
                                         onNavigate = { optimisticRoute = it },
                                         onExitApp = handleExitApp,
@@ -1521,7 +1524,8 @@ open class MainActivity : ComponentActivity() {
                                         activeProfileName = activeProfile?.name ?: "",
                                         activeProfileColorHex = activeProfile?.avatarColorHex ?: "#1E88E5",
                                         activeProfileAvatarImageUrl = activeProfileAvatarImageUrl,
-                                        showProfileSelector = profiles.size > 1,
+                                        showProfileSelector = profiles.size > 1 || liveTvSettingsNow.sideMenuProfile,
+                                        showProfileWhenClosed = liveTvSettingsNow.sideMenuProfile,
                                         onSwitchProfile = handleSwitchProfile,
                                         onNavigate = { optimisticRoute = it },
                                         onExitApp = handleExitApp,
@@ -1852,6 +1856,8 @@ private fun LegacySidebarScaffold(
     activeProfileColorHex: String,
     activeProfileAvatarImageUrl: String?,
     showProfileSelector: Boolean,
+    /** The profile picture at the top of the closed menu too (Settings → Menu & Features). */
+    showProfileWhenClosed: Boolean = false,
     onSwitchProfile: () -> Unit,
     onNavigate: (String) -> Unit,
     onExitApp: () -> Unit,
@@ -1996,7 +2002,61 @@ private fun LegacySidebarScaffold(
                         label = "legacySidebarItemWidth"
                     )
 
-                    if (isExpanded) {
+                    if (showProfileWhenClosed && !sidebarCollapsed && activeProfileName.isNotEmpty()) {
+                        // "Profile Picture Always Shown": one picture, in the same place open or closed,
+                        // lined up with the page icons below. Opening the menu only brings in the name
+                        // (and makes the row selectable: it opens the profile picker).
+                        val avatarSize = NuvioTheme.sizes.sidebar.leadingVisual
+                        val iconSize = NuvioComponents.tokens.sidebar.iconSize
+                        val avatarStart = 13.dp + (iconSize - avatarSize) / 2
+                        var isProfileFocused by remember { mutableStateOf(false) }
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .fillMaxWidth()
+                        ) {
+                            Spacer(modifier = Modifier.height(30.dp))
+                            Row(
+                                modifier = Modifier
+                                    .offset(x = NuvioTheme.spacing.md)
+                                    .width(itemWidth)
+                                    .height(sidebarTokens.itemHeight)
+                                    .background(
+                                        color = if (isProfileFocused && isExpanded) NuvioTheme.colors.FocusBackground else Color.Transparent,
+                                        shape = NuvioTheme.shapes.navItem
+                                    )
+                                    .focusProperties { canFocus = isExpanded }
+                                    .onFocusChanged { isProfileFocused = it.isFocused }
+                                    .clickable(enabled = isExpanded) {
+                                        onSwitchProfile()
+                                        drawerState.setValue(DrawerValue.Closed)
+                                    }
+                                    .semantics { role = Role.Button },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Spacer(modifier = Modifier.width(avatarStart))
+                                ProfileAvatarCircle(
+                                    name = activeProfileName,
+                                    colorHex = activeProfileColorHex,
+                                    size = avatarSize,
+                                    avatarImageUrl = activeProfileAvatarImageUrl,
+                                    imageCrossfade = false
+                                )
+                                if (isExpanded) {
+                                    // The name starts where the page labels below do.
+                                    Spacer(modifier = Modifier.width((54.dp - avatarStart - avatarSize).coerceAtLeast(NuvioTheme.spacing.sm)))
+                                    Text(
+                                        text = activeProfileName,
+                                        color = if (isProfileFocused) NuvioTheme.colors.TextPrimary else NuvioTheme.colors.TextSecondary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.Start,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+                    } else if (isExpanded) {
                         Column(
                             modifier = Modifier
                                 .align(Alignment.TopStart)
@@ -2133,11 +2193,14 @@ private fun LegacySidebarScaffold(
                                     // Room for the highlighted item, which grows a little.
                                     .padding(vertical = 4.dp)
                             ) {
+                                // At least the room's height, so the pages sit centred in it
+                                // when they fit (fewer pages, or Settings off the menu).
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .shrinkToFit(fitMenu, room, 0f),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                        .shrinkToFit(fitMenu, room, 0f)
+                                        .heightIn(min = room),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
                                     horizontalAlignment = Alignment.Start
                                 ) {
                                     drawerItems.filter { !it.pinnedBottom }.forEach { renderItem(it) }

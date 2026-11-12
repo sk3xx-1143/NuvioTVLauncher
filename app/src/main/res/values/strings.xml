@@ -576,6 +576,21 @@
     <string name="app_action_open">Open</string>
     <string name="app_action_move_earlier">Move earlier</string>
     <string name="app_action_move_later">Move later</string>
+    <string name="app_action_move">Move</string>
+    <string name="app_action_hide_page">Hide from the Apps page</string>
+    <string name="app_action_show_page">Show on the Apps page</string>
+    <string name="app_action_hide_home">Hide from the Home row</string>
+    <string name="app_action_show_home">Show on the Home row</string>
+    <string name="app_move_title">Moving %1$s</string>
+    <string name="app_move_position">Place %1$d of %2$d</string>
+    <string name="app_move_hint">Press ◀ or ▶ to move it (hold to keep going). Press OK when it\'s in place.</string>
+    <string name="app_move_done">Done</string>
+    <string name="app_badge_hidden_home">Hidden from the Home row</string>
+    <string name="app_badge_hidden_page">Hidden from the Apps page</string>
+    <plurals name="apps_hidden_note">
+        <item quantity="one">%1$d app is hidden here. Find it under the gear on Home → Apps.</item>
+        <item quantity="other">%1$d apps are hidden here. Find them under the gear on Home → Apps.</item>
+    </plurals>
     <string name="app_action_info">App info (uninstall)</string>
     <string name="wizard_welcome_title">Set up your launcher</string>
     <string name="wizard_welcome_body">This app can be your TV\'s Home screen. A few quick steps make the Home button open it, and let it show your TV\'s notifications. Then you sign in.</string>

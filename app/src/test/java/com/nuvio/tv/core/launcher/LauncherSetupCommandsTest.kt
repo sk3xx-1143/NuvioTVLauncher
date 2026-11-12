@@ -145,6 +145,25 @@ class AppOrderTest {
     }
 
     @Test
+    fun movingAmongShownAppsLeavesHiddenOnesInPlace() {
+        val ao = com.nuvio.tv.core.apps.AppOrder
+        // "h" is hidden: the screen shows a, b, c.
+        val all = listOf("a", "h", "b", "c")
+        val shown = listOf("a", "b", "c")
+        assertEquals(listOf("b", "a", "h", "c"), ao.moveAmong(all, shown, "b", -1))
+        assertEquals(listOf("a", "h", "c", "b"), ao.moveAmong(all, shown, "b", 1))
+        // Hidden apps are still all there afterwards.
+        assertEquals(all.sorted(), ao.moveAmong(all, shown, "a", 1)!!.sorted())
+        assertNull(ao.moveAmong(all, shown, "a", -1))
+        assertNull(ao.moveAmong(all, shown, "c", 1))
+        assertNull(ao.moveAmong(all, shown, "h", 1))
+        // Everything shown (the gear panel): a plain move.
+        assertEquals(ao.move(all, "h", 1), ao.moveAmong(all, all, "h", 1))
+        // Full list not loaded yet: only the shown order is reordered.
+        assertEquals(listOf("b", "a", "c"), ao.moveAmong(emptyList(), shown, "a", 1))
+    }
+
+    @Test
     fun savedOrderRoundTrips() {
         val ao = com.nuvio.tv.core.apps.AppOrder
         assertEquals(listOf("x", "y"), ao.decode(ao.encode(listOf("x", "y"))))
