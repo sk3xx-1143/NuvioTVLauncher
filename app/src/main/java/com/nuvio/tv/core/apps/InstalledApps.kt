@@ -171,8 +171,12 @@ class InstalledAppsRepository @Inject constructor(
         val tv = list(Intent.CATEGORY_LEANBACK_LAUNCHER)
         val tvPackages = tv.map { it.activityInfo.packageName }.toSet()
         val normal = list(Intent.CATEGORY_LAUNCHER).filter { it.activityInfo.packageName !in tvPackages }
+        // The system's Settings app isn't listed: the gear panel on Home opens it ("Android settings").
+        val settingsPackages = runCatching {
+            pm.queryIntentActivities(Intent(Settings.ACTION_SETTINGS), 0).map { it.activityInfo.packageName }.toSet()
+        }.getOrDefault(emptySet())
         return (tv.map { it to true } + normal.map { it to false })
-            .filter { (ri, _) -> ri.activityInfo.packageName != context.packageName }
+            .filter { (ri, _) -> ri.activityInfo.packageName != context.packageName && ri.activityInfo.packageName !in settingsPackages }
             .distinctBy { (ri, _) -> ri.activityInfo.packageName }
             .map { (ri, isTv) ->
                 InstalledApp(

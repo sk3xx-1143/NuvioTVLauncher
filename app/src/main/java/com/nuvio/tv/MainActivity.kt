@@ -2002,7 +2002,61 @@ private fun LegacySidebarScaffold(
                         label = "legacySidebarItemWidth"
                     )
 
-                    if (isExpanded) {
+                    if (showProfileWhenClosed && !sidebarCollapsed && activeProfileName.isNotEmpty()) {
+                        // "Profile Picture Always Shown": one picture, in the same place open or closed,
+                        // lined up with the page icons below. Opening the menu only brings in the name
+                        // (and makes the row selectable: it opens the profile picker).
+                        val avatarSize = NuvioTheme.sizes.sidebar.leadingVisual
+                        val iconSize = NuvioComponents.tokens.sidebar.iconSize
+                        val avatarStart = 13.dp + (iconSize - avatarSize) / 2
+                        var isProfileFocused by remember { mutableStateOf(false) }
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .fillMaxWidth()
+                        ) {
+                            Spacer(modifier = Modifier.height(30.dp))
+                            Row(
+                                modifier = Modifier
+                                    .offset(x = NuvioTheme.spacing.md)
+                                    .width(itemWidth)
+                                    .height(sidebarTokens.itemHeight)
+                                    .background(
+                                        color = if (isProfileFocused && isExpanded) NuvioTheme.colors.FocusBackground else Color.Transparent,
+                                        shape = NuvioTheme.shapes.navItem
+                                    )
+                                    .focusProperties { canFocus = isExpanded }
+                                    .onFocusChanged { isProfileFocused = it.isFocused }
+                                    .clickable(enabled = isExpanded) {
+                                        onSwitchProfile()
+                                        drawerState.setValue(DrawerValue.Closed)
+                                    }
+                                    .semantics { role = Role.Button },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Spacer(modifier = Modifier.width(avatarStart))
+                                ProfileAvatarCircle(
+                                    name = activeProfileName,
+                                    colorHex = activeProfileColorHex,
+                                    size = avatarSize,
+                                    avatarImageUrl = activeProfileAvatarImageUrl,
+                                    imageCrossfade = false
+                                )
+                                if (isExpanded) {
+                                    // The name starts where the page labels below do.
+                                    Spacer(modifier = Modifier.width((54.dp - avatarStart - avatarSize).coerceAtLeast(NuvioTheme.spacing.sm)))
+                                    Text(
+                                        text = activeProfileName,
+                                        color = if (isProfileFocused) NuvioTheme.colors.TextPrimary else NuvioTheme.colors.TextSecondary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.Start,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+                    } else if (isExpanded) {
                         Column(
                             modifier = Modifier
                                 .align(Alignment.TopStart)
@@ -2060,31 +2114,6 @@ private fun LegacySidebarScaffold(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(42.dp)
-                                )
-                            }
-                        }
-                    } else if (showProfileWhenClosed && !sidebarCollapsed && activeProfileName.isNotEmpty()) {
-                        // Closed menu: the profile picture at the top, lined up with the page icons
-                        // below and at the height the open menu's profile row has.
-                        val avatarSize = NuvioTheme.sizes.sidebar.leadingVisual
-                        val iconSize = NuvioComponents.tokens.sidebar.iconSize
-                        Column(
-                            modifier = Modifier
-                                .align(Alignment.TopStart)
-                                .fillMaxWidth()
-                        ) {
-                            Spacer(modifier = Modifier.height(30.dp))
-                            Box(
-                                modifier = Modifier.height(sidebarTokens.itemHeight),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                ProfileAvatarCircle(
-                                    name = activeProfileName,
-                                    colorHex = activeProfileColorHex,
-                                    size = avatarSize,
-                                    avatarImageUrl = activeProfileAvatarImageUrl,
-                                    imageCrossfade = false,
-                                    modifier = Modifier.offset(x = NuvioTheme.spacing.md + 13.dp + (iconSize - avatarSize) / 2)
                                 )
                             }
                         }
