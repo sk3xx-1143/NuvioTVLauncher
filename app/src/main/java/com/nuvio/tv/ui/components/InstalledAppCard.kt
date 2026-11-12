@@ -36,7 +36,7 @@ import com.nuvio.tv.ui.theme.NuvioTheme
 
 /**
  * One app: its banner (or icon) with the name under it. OK opens it, long-press opens its menu.
- * A hidden app (only listed in the gear panel's Apps) is dimmed and says so under its name.
+ * An app hidden somewhere (shown that way only in the gear panel's Apps) is dimmed and says where.
  */
 @Composable
 fun InstalledAppCard(
@@ -62,7 +62,7 @@ fun InstalledAppCard(
             ),
             scale = CardDefaults.scale(focusedScale = 1.06f)
         ) {
-            Box(Modifier.fillMaxSize().alpha(if (app.hidden) 0.4f else 1f), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxSize().alpha(if (app.hiddenAnywhere) 0.4f else 1f), contentAlignment = Alignment.Center) {
                 image?.let {
                     Image(
                         bitmap = it.asImageBitmap(),
@@ -75,7 +75,12 @@ fun InstalledAppCard(
             }
         }
         Text(
-            text = if (app.hidden) stringResource(R.string.app_hidden_label, app.label) else app.label,
+            text = when {
+                app.hiddenOnPage && app.hiddenOnHome -> stringResource(R.string.app_hidden_label, app.label)
+                app.hiddenOnPage -> stringResource(R.string.app_hidden_page_label, app.label)
+                app.hiddenOnHome -> stringResource(R.string.app_hidden_home_label, app.label)
+                else -> app.label
+            },
             style = MaterialTheme.typography.labelMedium,
             color = NuvioTheme.colors.TextSecondary,
             maxLines = 1,

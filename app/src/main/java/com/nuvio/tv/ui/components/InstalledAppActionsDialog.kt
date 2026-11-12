@@ -36,7 +36,7 @@ import com.nuvio.tv.ui.theme.NuvioTheme
 
 /**
  * Long-press on an app: open it, move it (the Apps page and the Home row share one order), rename it,
- * hide it, or see its system page (Uninstall, Force stop). "Move" picks the app up: ◀ and ▶ walk it
+ * hide it from the Apps page or the Home row (each on its own, per profile), or see its system page. "Move" picks the app up: ◀ and ▶ walk it
  * along the list (holding one keeps it going) and OK or Back puts it down.
  */
 @Composable
@@ -52,8 +52,10 @@ fun InstalledAppActionsDialog(
     onDismiss: () -> Unit,
     /** Home was pressed: close this and whatever opened it. */
     onHome: () -> Unit = onDismiss,
-    /** Hides the app, or shows it again when it is hidden. Null leaves the button out. */
-    onToggleHidden: (() -> Unit)? = null,
+    /** Hides the app from the Apps page (side menu), or shows it there again. Null leaves the button out. */
+    onTogglePage: (() -> Unit)? = null,
+    /** Hides the app from the Home row, or shows it there again. Null leaves the button out. */
+    onToggleHome: (() -> Unit)? = null,
     /** The app's place in the list (from 1) and the list's size, shown while moving. */
     position: Int = 0,
     count: Int = 0
@@ -143,9 +145,14 @@ fun InstalledAppActionsDialog(
                 Button(onClick = { renaming = true }, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.app_action_rename))
                 }
-                if (onToggleHidden != null) {
-                    Button(onClick = onToggleHidden, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(if (app.hidden) R.string.app_action_unhide else R.string.app_action_hide))
+                if (onTogglePage != null) {
+                    Button(onClick = onTogglePage, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(if (app.hiddenOnPage) R.string.app_action_show_page else R.string.app_action_hide_page))
+                    }
+                }
+                if (onToggleHome != null) {
+                    Button(onClick = onToggleHome, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(if (app.hiddenOnHome) R.string.app_action_show_home else R.string.app_action_hide_home))
                     }
                 }
                 Button(onClick = { onDismiss(); onAppInfo() }, modifier = Modifier.fillMaxWidth()) {

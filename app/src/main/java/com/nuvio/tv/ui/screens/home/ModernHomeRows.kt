@@ -514,7 +514,7 @@ internal fun ModernRowSection(
     val appsViewModel: com.nuvio.tv.core.apps.InstalledAppsViewModel? =
         if (row.key == com.nuvio.tv.core.apps.INSTALLED_APPS_CATALOG_KEY) androidx.hilt.navigation.compose.hiltViewModel() else null
     // Moves are worked out from the view model's app lists, so keep them live while this row shows.
-    appsViewModel?.apps?.collectAsStateWithLifecycle()
+    appsViewModel?.homeApps?.collectAsStateWithLifecycle()
     var contextMenuApp by remember { mutableStateOf<com.nuvio.tv.core.apps.InstalledApp?>(null) }
     contextMenuApp?.let { app ->
         val shown = row.items.list.mapNotNull { (it.payload as? ModernPayload.InstalledApp)?.app }
@@ -524,12 +524,13 @@ internal fun ModernRowSection(
             canMoveEarlier = index > 0,
             canMoveLater = index < shown.lastIndex,
             onOpen = { appsViewModel.launch(app) },
-            onMoveEarlier = { appsViewModel.move(app, -1) },
-            onMoveLater = { appsViewModel.move(app, 1) },
+            onMoveEarlier = { appsViewModel.move(app, -1, com.nuvio.tv.core.apps.AppsPlace.HOME) },
+            onMoveLater = { appsViewModel.move(app, 1, com.nuvio.tv.core.apps.AppsPlace.HOME) },
             onAppInfo = { appsViewModel.openAppInfo(app) },
             onRename = { appsViewModel.rename(app, it) },
             onDismiss = { contextMenuApp = null },
-            onToggleHidden = { appsViewModel.setHidden(app, !shown[index].hidden) },
+            onTogglePage = { appsViewModel.setHidden(app, com.nuvio.tv.core.apps.AppsPlace.PAGE, !shown[index].hiddenOnPage) },
+            onToggleHome = { appsViewModel.setHidden(app, com.nuvio.tv.core.apps.AppsPlace.HOME, !shown[index].hiddenOnHome) },
             position = index + 1,
             count = shown.size
         )

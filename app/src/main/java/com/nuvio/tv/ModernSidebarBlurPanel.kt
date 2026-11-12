@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import com.nuvio.tv.livetv.ui.shrinkToFit
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -256,11 +257,14 @@ internal fun ModernSidebarBlurPanel(
                     // Room for the highlighted item, which grows a little.
                     .padding(vertical = 4.dp)
             ) {
+                // At least the room's height, so the pages sit centred in it when they fit
+                // (fewer pages, or Settings off the menu).
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shrinkToFit(fitMenu, room, 0.5f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                        .shrinkToFit(fitMenu, room, 0.5f)
+                        .heightIn(min = room),
+                    verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     drawerItems.forEachIndexed { index, item -> if (!item.pinnedBottom) renderItem(index, item) }

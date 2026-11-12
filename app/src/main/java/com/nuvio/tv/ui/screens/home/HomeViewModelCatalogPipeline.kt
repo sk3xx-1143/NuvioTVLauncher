@@ -62,7 +62,7 @@ internal fun HomeViewModel.observeCollectionsPipeline() {
 internal fun HomeViewModel.observeInstalledAppsRowPipeline() {
     val repository = installedAppsRepository ?: return
     viewModelScope.launch {
-        repository.apps
+        repository.homeApps
             .distinctUntilChanged()
             .collectLatest { apps ->
                 installedAppsCache = apps

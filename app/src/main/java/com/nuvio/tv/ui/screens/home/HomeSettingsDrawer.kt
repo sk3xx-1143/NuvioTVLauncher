@@ -185,13 +185,14 @@ fun HomeSettingsDrawer(
                 canMoveEarlier = index > 0,
                 canMoveLater = index < apps.lastIndex,
                 onOpen = { if (appsViewModel.launch(app)) onDismiss() },
-                onMoveEarlier = { appsViewModel.move(app, -1, amongAll = true) },
-                onMoveLater = { appsViewModel.move(app, 1, amongAll = true) },
+                onMoveEarlier = { appsViewModel.move(app, -1, place = null) },
+                onMoveLater = { appsViewModel.move(app, 1, place = null) },
                 onAppInfo = { appsViewModel.openAppInfo(app) },
                 onRename = { appsViewModel.rename(app, it) },
                 onDismiss = { actionsFor = null },
                 onHome = onDismiss,
-                onToggleHidden = { appsViewModel.setHidden(app, !apps[index].hidden) },
+                onTogglePage = { appsViewModel.setHidden(app, com.nuvio.tv.core.apps.AppsPlace.PAGE, !apps[index].hiddenOnPage) },
+                onToggleHome = { appsViewModel.setHidden(app, com.nuvio.tv.core.apps.AppsPlace.HOME, !apps[index].hiddenOnHome) },
                 position = index + 1,
                 count = apps.size
             )

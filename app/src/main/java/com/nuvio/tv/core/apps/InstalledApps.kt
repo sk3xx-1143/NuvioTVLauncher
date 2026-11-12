@@ -11,10 +11,16 @@ import android.provider.Settings
 import android.util.LruCache
 import androidx.core.graphics.drawable.toBitmap
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.nuvio.tv.core.profile.ProfileManager
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
@@ -35,9 +41,17 @@ data class InstalledApp(
     val isTvApp: Boolean,
     /** The name the app itself uses. */
     val originalLabel: String = label,
-    /** Taken off the Apps page and the Home row; still listed (dimmed) in the gear panel's Apps. */
-    val hidden: Boolean = false
-)
+    /** Taken off the Apps page (side menu) for the active profile. */
+    val hiddenOnPage: Boolean = false,
+    /** Taken off the Home row for the active profile. */
+    val hiddenOnHome: Boolean = false
+) {
+    /** Hidden somewhere: the gear panel's Apps (which lists every app) dims it and says where. */
+    val hiddenAnywhere: Boolean get() = hiddenOnPage || hiddenOnHome
+}
+
+/** Where an app list is shown; each place has its own hidden apps (per profile). */
+enum class AppsPlace { PAGE, HOME }
 
 /**
  * The apps on this device, the way FLauncher / ArcLauncher list them: everything with a
@@ -46,8 +60,11 @@ data class InstalledApp(
  */
 @Singleton
 class InstalledAppsRepository @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val profileManager: ProfileManager
 ) {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     private val pm: PackageManager get() = context.packageManager
 
     // Banners are 320x180, icons much smaller; 48 entries covers a home row + the Apps grid.
@@ -58,25 +75,41 @@ class InstalledAppsRepository @Inject constructor(
     private val prefs = context.getSharedPreferences("launcher_apps", Context.MODE_PRIVATE)
     private val savedOrder = MutableStateFlow(AppOrder.decode(prefs.getString(KEY_ORDER, null)))
     private val savedLabels = MutableStateFlow(AppLabels.decode(prefs.getString(KEY_LABELS, null)))
-    private val savedHidden = MutableStateFlow(AppOrder.decode(prefs.getString(KEY_HIDDEN, null)).toSet())
+    // Bumped on every hide/show, so the active profile's hidden lists are read again.
+    private val hiddenRevision = MutableStateFlow(0)
     val order: StateFlow<List<String>> = savedOrder.asStateFlow()
 
+    // One package query and one install/remove listener, shared by every screen showing apps.
+    private val installedShared: Flow<List<InstalledApp>> =
+        installed().shareIn(scope, SharingStarted.WhileSubscribed(5_000), replay = 1)
+
+    // The active profile's hidden apps, per place. Switching profile switches the lists.
+    private val activeHidden: Flow<Map<AppsPlace, Set<String>>> =
+        combine(profileManager.activeProfileId, hiddenRevision) { profileId, _ ->
+            AppsPlace.entries.associateWith { place -> readHidden(profileId, place) }
+        }.distinctUntilChanged()
+
     /**
-     * Every app, hidden ones included (marked [InstalledApp.hidden]), in the user's order. The gear
+     * Every app in the user's order, each marked with where the active profile hid it. The gear
      * panel's Apps list shows these, so a hidden app can always be found and shown again.
      */
-    val allApps: Flow<List<InstalledApp>> = combine(installed(), savedOrder, savedLabels, savedHidden) { list, order, labels, hidden ->
+    val allApps: Flow<List<InstalledApp>> = combine(installedShared, savedOrder, savedLabels, activeHidden) { list, order, labels, hidden ->
+        val onPage = hidden[AppsPlace.PAGE].orEmpty()
+        val onHome = hidden[AppsPlace.HOME].orEmpty()
         AppOrder.apply(
             list.map { app ->
                 val named = labels[app.packageName]?.let { app.copy(label = it) } ?: app
-                if (app.packageName in hidden) named.copy(hidden = true) else named
+                named.copy(hiddenOnPage = app.packageName in onPage, hiddenOnHome = app.packageName in onHome)
             },
             order
         )
-    }
+    }.distinctUntilChanged()
 
-    /** The apps the Apps page and the Home row show: [allApps] without the hidden ones. */
-    val apps: Flow<List<InstalledApp>> = allApps.map { list -> list.filterNot { it.hidden } }
+    /** The apps the Apps page (side menu) shows. */
+    val pageApps: Flow<List<InstalledApp>> = allApps.map { list -> list.filterNot { it.hiddenOnPage } }
+
+    /** The apps the Home row shows. */
+    val homeApps: Flow<List<InstalledApp>> = allApps.map { list -> list.filterNot { it.hiddenOnHome } }
 
     /** Gives [app] the name [name] on the Apps page and the Home row; blank puts the app's own name back. */
     fun rename(app: InstalledApp, name: String?) {
@@ -95,13 +128,22 @@ class InstalledAppsRepository @Inject constructor(
         savedOrder.value = updated
     }
 
-    /** Takes [app] off the Apps page and the Home row ([hidden] true), or puts it back. */
-    fun setHidden(app: InstalledApp, hidden: Boolean) {
-        val current = savedHidden.value
+    /** Takes [app] off [place] for the active profile ([hidden] true), or puts it back. */
+    fun setHidden(app: InstalledApp, place: AppsPlace, hidden: Boolean) {
+        val profileId = profileManager.activeProfileId.value
+        val current = readHidden(profileId, place)
         val updated = if (hidden) current + app.packageName else current - app.packageName
         if (updated == current) return
-        prefs.edit().putString(KEY_HIDDEN, AppOrder.encode(updated.sorted())).apply()
-        savedHidden.value = updated
+        prefs.edit().putString(hiddenKey(profileId, place), AppOrder.encode(updated.sorted())).apply()
+        hiddenRevision.value++
+    }
+
+    private fun readHidden(profileId: Int, place: AppsPlace): Set<String> =
+        AppOrder.decode(prefs.getString(hiddenKey(profileId, place), null)).toSet()
+
+    private fun hiddenKey(profileId: Int, place: AppsPlace): String = when (place) {
+        AppsPlace.PAGE -> "hidden_page_$profileId"
+        AppsPlace.HOME -> "hidden_home_$profileId"
     }
 
     private fun installed(): Flow<List<InstalledApp>> = callbackFlow {
@@ -123,7 +165,6 @@ class InstalledAppsRepository @Inject constructor(
     private companion object {
         const val KEY_ORDER = "order"
         const val KEY_LABELS = "labels"
-        const val KEY_HIDDEN = "hidden"
     }
 
     private fun query(): List<InstalledApp> {

@@ -39,9 +39,9 @@ import com.nuvio.tv.ui.theme.NuvioTheme
  */
 @Composable
 fun AppsScreen(viewModel: InstalledAppsViewModel = hiltViewModel()) {
-    val apps by viewModel.apps.collectAsStateWithLifecycle()
+    val apps by viewModel.pageApps.collectAsStateWithLifecycle()
     val allApps by viewModel.allApps.collectAsStateWithLifecycle()
-    val hiddenCount = allApps.count { it.hidden }
+    val hiddenCount = allApps.count { it.hiddenOnPage }
     val first = remember { FocusRequester() }
     var actionsFor by remember { mutableStateOf<com.nuvio.tv.core.apps.InstalledApp?>(null) }
     LaunchedEffect(apps.isNotEmpty()) {
@@ -109,12 +109,13 @@ fun AppsScreen(viewModel: InstalledAppsViewModel = hiltViewModel()) {
             canMoveEarlier = index > 0,
             canMoveLater = index < apps.lastIndex,
             onOpen = { viewModel.launch(app) },
-            onMoveEarlier = { viewModel.move(app, -1) },
-            onMoveLater = { viewModel.move(app, 1) },
+            onMoveEarlier = { viewModel.move(app, -1, com.nuvio.tv.core.apps.AppsPlace.PAGE) },
+            onMoveLater = { viewModel.move(app, 1, com.nuvio.tv.core.apps.AppsPlace.PAGE) },
             onAppInfo = { viewModel.openAppInfo(app) },
             onRename = { viewModel.rename(app, it) },
             onDismiss = { actionsFor = null },
-            onToggleHidden = { viewModel.setHidden(app, !apps[index].hidden); refocus++ },
+            onTogglePage = { viewModel.setHidden(app, com.nuvio.tv.core.apps.AppsPlace.PAGE, !apps[index].hiddenOnPage); refocus++ },
+            onToggleHome = { viewModel.setHidden(app, com.nuvio.tv.core.apps.AppsPlace.HOME, !apps[index].hiddenOnHome) },
             position = index + 1,
             count = apps.size
         )

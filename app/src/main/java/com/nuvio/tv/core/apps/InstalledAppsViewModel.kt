@@ -19,17 +19,28 @@ class InstalledAppsViewModel @Inject constructor(
     val allApps: StateFlow<List<InstalledApp>> = repository.allApps
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** The apps the Apps page and the Home row show (no hidden ones). */
-    val apps: StateFlow<List<InstalledApp>> = allApps
-        .map { list -> list.filterNot { it.hidden } }
+    /** The apps the Apps page (side menu) shows. */
+    val pageApps: StateFlow<List<InstalledApp>> = allApps
+        .map { list -> list.filterNot { it.hiddenOnPage } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** The apps the Home row shows. */
+    val homeApps: StateFlow<List<InstalledApp>> = allApps
+        .map { list -> list.filterNot { it.hiddenOnHome } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     suspend fun image(app: InstalledApp): Bitmap? = repository.image(app)
     fun launch(app: InstalledApp) = repository.launch(app)
-    /** Moves [app] among the apps on screen: [apps], or [allApps] when the screen lists hidden ones too. */
-    fun move(app: InstalledApp, delta: Int, amongAll: Boolean = false) =
-        repository.move(allApps.value, if (amongAll) allApps.value else apps.value, app, delta)
-    fun setHidden(app: InstalledApp, hidden: Boolean) = repository.setHidden(app, hidden)
+    /** Moves [app] among the apps on screen: those of [place], or all apps (the gear panel) when null. */
+    fun move(app: InstalledApp, delta: Int, place: AppsPlace?) {
+        val shown = when (place) {
+            AppsPlace.PAGE -> pageApps.value
+            AppsPlace.HOME -> homeApps.value
+            null -> allApps.value
+        }
+        repository.move(allApps.value, shown, app, delta)
+    }
+    fun setHidden(app: InstalledApp, place: AppsPlace, hidden: Boolean) = repository.setHidden(app, place, hidden)
     fun openAppInfo(app: InstalledApp) = repository.openAppInfo(app)
     fun rename(app: InstalledApp, name: String?) = repository.rename(app, name)
 }

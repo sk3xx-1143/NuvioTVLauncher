@@ -184,7 +184,7 @@ fun SideMenuSettingsContent(initialFocusRequester: FocusRequester? = null) {
                 }
             }
             item(key = "pages") {
-                SettingsGroupCard(title = "Pages", subtitle = "OK turns a page on or off. The arrows move it up or down the menu. Settings always stays at the bottom.") {
+                SettingsGroupCard(title = "Pages", subtitle = "OK turns a page on or off. The arrows move it up or down the menu. Settings stays at the bottom (it can be taken off the menu below).") {
                     order.forEachIndexed { index, id ->
                         val r = rowFor(id)
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -213,6 +213,19 @@ fun SideMenuSettingsContent(initialFocusRequester: FocusRequester? = null) {
             }
             item(key = "look") {
                 SettingsGroupCard(title = "How the Menu Looks") {
+                    // Settings must stay reachable: off the menu only while Home (and its gear) is in it.
+                    val homeInMenu = !(SideMenuPages.HOME in hidden && startRoute != null)
+                    val settingsOff = SideMenuPages.SETTINGS in hidden && homeInMenu
+                    SettingsToggleRow(
+                        title = "Settings Button in the Menu",
+                        subtitle = if (homeInMenu) "Off: open Settings from the gear at the top right of Home."
+                            else "Stays on while Home is off the menu, so Settings can always be opened.",
+                        checked = !settingsOff,
+                        onToggle = {
+                            if (!homeInMenu) LiveTvNotice.show("Put Home back in the menu first")
+                            else setHidden(SideMenuPages.SETTINGS, !settingsOff)
+                        }
+                    )
                     SettingsToggleRow(
                         title = "Line Above Live TV",
                         subtitle = "The thin line between Nuvio's pages and the Live TV pages. Off: the pages sit a little closer together.",

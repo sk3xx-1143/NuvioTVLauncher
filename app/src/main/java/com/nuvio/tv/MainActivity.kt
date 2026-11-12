@@ -43,6 +43,7 @@ import com.nuvio.tv.livetv.ui.shrinkToFit
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -1389,7 +1390,9 @@ open class MainActivity : ComponentActivity() {
                                 if (id in pages.LIVE_FAMILY) lineDone = true
                                 add(if (line) item.copy(sectionStart = true) else item)
                             }
-                            add(
+                            // Settings can leave the menu (Menu & Features) while Home is in it: the gear
+                            // at the top of Home opens it then. Without Home it always stays.
+                            if (pages.SETTINGS !in hiddenPages || homeHidden) add(
                                 DrawerItem(
                                     route = Screen.Settings.route,
                                     label = strNavSettings,
@@ -2133,11 +2136,14 @@ private fun LegacySidebarScaffold(
                                     // Room for the highlighted item, which grows a little.
                                     .padding(vertical = 4.dp)
                             ) {
+                                // At least the room's height, so the pages sit centred in it
+                                // when they fit (fewer pages, or Settings off the menu).
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .shrinkToFit(fitMenu, room, 0f),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                        .shrinkToFit(fitMenu, room, 0f)
+                                        .heightIn(min = room),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
                                     horizontalAlignment = Alignment.Start
                                 ) {
                                     drawerItems.filter { !it.pinnedBottom }.forEach { renderItem(it) }
