@@ -45,10 +45,7 @@ data class InstalledApp(
     val hiddenOnPage: Boolean = false,
     /** Taken off the Home row for the active profile. */
     val hiddenOnHome: Boolean = false
-) {
-    /** Hidden somewhere: the gear panel's Apps (which lists every app) dims it and says where. */
-    val hiddenAnywhere: Boolean get() = hiddenOnPage || hiddenOnHome
-}
+)
 
 /** Where an app list is shown; each place has its own hidden apps (per profile). */
 enum class AppsPlace { PAGE, HOME }
@@ -91,7 +88,7 @@ class InstalledAppsRepository @Inject constructor(
 
     /**
      * Every app in the user's order, each marked with where the active profile hid it. The gear
-     * panel's Apps list shows these, so a hidden app can always be found and shown again.
+     * panel's Apps list shows all of them (hidden ones look the same; their menu shows them again).
      */
     val allApps: Flow<List<InstalledApp>> = combine(installedShared, savedOrder, savedLabels, activeHidden) { list, order, labels, hidden ->
         val onPage = hidden[AppsPlace.PAGE].orEmpty()

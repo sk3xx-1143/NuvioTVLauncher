@@ -17,10 +17,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -30,14 +28,10 @@ import androidx.tv.material3.CardDefaults
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
-import com.nuvio.tv.R
 import com.nuvio.tv.core.apps.InstalledApp
 import com.nuvio.tv.ui.theme.NuvioTheme
 
-/**
- * One app: its banner (or icon) with the name under it. OK opens it, long-press opens its menu.
- * An app hidden somewhere (shown that way only in the gear panel's Apps) is dimmed and says where.
- */
+/** One app: its banner (or icon) with the name under it. OK opens it, long-press opens its menu. */
 @Composable
 fun InstalledAppCard(
     app: InstalledApp,
@@ -62,7 +56,7 @@ fun InstalledAppCard(
             ),
             scale = CardDefaults.scale(focusedScale = 1.06f)
         ) {
-            Box(Modifier.fillMaxSize().alpha(if (app.hiddenAnywhere) 0.4f else 1f), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 image?.let {
                     Image(
                         bitmap = it.asImageBitmap(),
@@ -75,12 +69,7 @@ fun InstalledAppCard(
             }
         }
         Text(
-            text = when {
-                app.hiddenOnPage && app.hiddenOnHome -> stringResource(R.string.app_hidden_label, app.label)
-                app.hiddenOnPage -> stringResource(R.string.app_hidden_page_label, app.label)
-                app.hiddenOnHome -> stringResource(R.string.app_hidden_home_label, app.label)
-                else -> app.label
-            },
+            text = app.label,
             style = MaterialTheme.typography.labelMedium,
             color = NuvioTheme.colors.TextSecondary,
             maxLines = 1,

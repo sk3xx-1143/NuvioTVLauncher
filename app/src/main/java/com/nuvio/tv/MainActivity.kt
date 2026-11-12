@@ -1498,7 +1498,7 @@ open class MainActivity : ComponentActivity() {
                                         activeProfileName = activeProfile?.name ?: "",
                                         activeProfileColorHex = activeProfile?.avatarColorHex ?: "#1E88E5",
                                         activeProfileAvatarImageUrl = activeProfileAvatarImageUrl,
-                                        showProfileSelector = profiles.size > 1,
+                                        showProfileSelector = profiles.size > 1 || liveTvSettingsNow.sideMenuProfile,
                                         onSwitchProfile = handleSwitchProfile,
                                         onNavigate = { optimisticRoute = it },
                                         onExitApp = handleExitApp,
@@ -1524,7 +1524,8 @@ open class MainActivity : ComponentActivity() {
                                         activeProfileName = activeProfile?.name ?: "",
                                         activeProfileColorHex = activeProfile?.avatarColorHex ?: "#1E88E5",
                                         activeProfileAvatarImageUrl = activeProfileAvatarImageUrl,
-                                        showProfileSelector = profiles.size > 1,
+                                        showProfileSelector = profiles.size > 1 || liveTvSettingsNow.sideMenuProfile,
+                                        showProfileWhenClosed = liveTvSettingsNow.sideMenuProfile,
                                         onSwitchProfile = handleSwitchProfile,
                                         onNavigate = { optimisticRoute = it },
                                         onExitApp = handleExitApp,
@@ -1855,6 +1856,8 @@ private fun LegacySidebarScaffold(
     activeProfileColorHex: String,
     activeProfileAvatarImageUrl: String?,
     showProfileSelector: Boolean,
+    /** The profile picture at the top of the closed menu too (Settings → Menu & Features). */
+    showProfileWhenClosed: Boolean = false,
     onSwitchProfile: () -> Unit,
     onNavigate: (String) -> Unit,
     onExitApp: () -> Unit,
@@ -2057,6 +2060,31 @@ private fun LegacySidebarScaffold(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(42.dp)
+                                )
+                            }
+                        }
+                    } else if (showProfileWhenClosed && !sidebarCollapsed && activeProfileName.isNotEmpty()) {
+                        // Closed menu: the profile picture at the top, lined up with the page icons
+                        // below and at the height the open menu's profile row has.
+                        val avatarSize = NuvioTheme.sizes.sidebar.leadingVisual
+                        val iconSize = NuvioComponents.tokens.sidebar.iconSize
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .fillMaxWidth()
+                        ) {
+                            Spacer(modifier = Modifier.height(30.dp))
+                            Box(
+                                modifier = Modifier.height(sidebarTokens.itemHeight),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                ProfileAvatarCircle(
+                                    name = activeProfileName,
+                                    colorHex = activeProfileColorHex,
+                                    size = avatarSize,
+                                    avatarImageUrl = activeProfileAvatarImageUrl,
+                                    imageCrossfade = false,
+                                    modifier = Modifier.offset(x = NuvioTheme.spacing.md + 13.dp + (iconSize - avatarSize) / 2)
                                 )
                             }
                         }

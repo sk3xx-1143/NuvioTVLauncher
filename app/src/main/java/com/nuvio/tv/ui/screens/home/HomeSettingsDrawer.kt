@@ -68,7 +68,7 @@ private enum class DrawerMode { MENU, APPS }
 
 /**
  * The gear at the top right of Home: a side panel with Apps (every installed app, opened right in the
- * panel, hidden ones included and dimmed so they can be shown again), the launcher's settings and
+ * panel, hidden ones included so they can be shown again), the launcher's settings and
  * Android's own settings. Home closes it.
  */
 @Composable

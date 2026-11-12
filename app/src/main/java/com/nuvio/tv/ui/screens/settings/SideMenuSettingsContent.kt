@@ -184,7 +184,7 @@ fun SideMenuSettingsContent(initialFocusRequester: FocusRequester? = null) {
                 }
             }
             item(key = "pages") {
-                SettingsGroupCard(title = "Pages", subtitle = "OK turns a page on or off. The arrows move it up or down the menu. Settings stays at the bottom (it can be taken off the menu below).") {
+                SettingsGroupCard(title = "Pages", subtitle = "OK turns a page on or off. The arrows move it up or down the menu. Settings stays at the bottom.") {
                     order.forEachIndexed { index, id ->
                         val r = rowFor(id)
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -209,22 +209,35 @@ fun SideMenuSettingsContent(initialFocusRequester: FocusRequester? = null) {
                             ArrowButton(up = false, enabled = index < order.lastIndex) { move(id, 1) }
                         }
                     }
+                    // Settings: always last, so no arrows. It must stay reachable: it can leave the menu
+                    // only while Home (with the gear at its top right) is in it.
+                    val homeInMenu = !(SideMenuPages.HOME in hidden && startRoute != null)
+                    val settingsOff = SideMenuPages.SETTINGS in hidden && homeInMenu
+                    // Same width as the rows above: empty room where their two arrows are.
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SettingsToggleRow(
+                            title = "Settings",
+                            subtitle = if (homeInMenu) "Off: Settings leaves the menu and opens from the gear at the top right of Home."
+                                else "Stays in the menu while Home is off it, so Settings can always be opened.",
+                            checked = !settingsOff,
+                            onToggle = {
+                                if (!homeInMenu) LiveTvNotice.show("Put Home back in the menu first")
+                                else setHidden(SideMenuPages.SETTINGS, !settingsOff)
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        androidx.compose.foundation.layout.Spacer(Modifier.size(46.dp))
+                        androidx.compose.foundation.layout.Spacer(Modifier.size(46.dp))
+                    }
                 }
             }
             item(key = "look") {
                 SettingsGroupCard(title = "How the Menu Looks") {
-                    // Settings must stay reachable: off the menu only while Home (and its gear) is in it.
-                    val homeInMenu = !(SideMenuPages.HOME in hidden && startRoute != null)
-                    val settingsOff = SideMenuPages.SETTINGS in hidden && homeInMenu
                     SettingsToggleRow(
-                        title = "Settings Button in the Menu",
-                        subtitle = if (homeInMenu) "Off: open Settings from the gear at the top right of Home."
-                            else "Stays on while Home is off the menu, so Settings can always be opened.",
-                        checked = !settingsOff,
-                        onToggle = {
-                            if (!homeInMenu) LiveTvNotice.show("Put Home back in the menu first")
-                            else setHidden(SideMenuPages.SETTINGS, !settingsOff)
-                        }
+                        title = "Profile Picture Always Shown",
+                        subtitle = "Your profile picture stays at the top of the menu, also while the menu is closed and with only one profile. Select it to switch profiles.",
+                        checked = s.sideMenuProfile,
+                        onToggle = { update { it.copy(sideMenuProfile = !it.sideMenuProfile) } }
                     )
                     SettingsToggleRow(
                         title = "Line Above Live TV",
