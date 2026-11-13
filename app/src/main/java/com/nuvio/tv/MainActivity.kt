@@ -47,6 +47,13 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import kotlin.math.roundToInt
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
@@ -1526,6 +1533,7 @@ open class MainActivity : ComponentActivity() {
                                         activeProfileAvatarImageUrl = activeProfileAvatarImageUrl,
                                         showProfileSelector = profiles.size > 1 || liveTvSettingsNow.sideMenuProfile,
                                         showProfileWhenClosed = liveTvSettingsNow.sideMenuProfile,
+                                        showClock = liveTvSettingsNow.sideMenuClock,
                                         onSwitchProfile = handleSwitchProfile,
                                         onNavigate = { optimisticRoute = it },
                                         onExitApp = handleExitApp,
@@ -1819,6 +1827,33 @@ open class MainActivity : ComponentActivity() {
     }
 }
 
+private const val PROFILE_ROW_KEY = "__profile__"
+
+/** The time in the side menu: hours and minutes in the TV's 12/24-hour style, no AM/PM, so it fits the closed menu. */
+@Composable
+private fun SidebarClock(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val text by produceState(initialValue = sidebarClockText(context)) {
+        while (true) {
+            value = sidebarClockText(context)
+            delay(60_000L - System.currentTimeMillis() % 60_000L + 50L)
+        }
+    }
+    Text(
+        text = text,
+        style = androidx.tv.material3.MaterialTheme.typography.labelLarge,
+        color = NuvioTheme.colors.TextPrimary,
+        maxLines = 1,
+        softWrap = false,
+        modifier = modifier
+    )
+}
+
+private fun sidebarClockText(context: Context): String {
+    val pattern = if (android.text.format.DateFormat.is24HourFormat(context)) "H:mm" else "h:mm"
+    return java.text.SimpleDateFormat(pattern, java.util.Locale.getDefault()).format(java.util.Date())
+}
+
 @Composable
 private fun SidebarFocusRecoveryEffect(
     drawerItems: List<DrawerItem>,
@@ -1858,6 +1893,8 @@ private fun LegacySidebarScaffold(
     showProfileSelector: Boolean,
     /** The profile picture at the top of the closed menu too (Settings → Menu & Features). */
     showProfileWhenClosed: Boolean = false,
+    /** The current time at the top left of the menu, above the profile picture (Settings → Menu & Features). */
+    showClock: Boolean = false,
     onSwitchProfile: () -> Unit,
     onNavigate: (String) -> Unit,
     onExitApp: () -> Unit,
@@ -1891,6 +1928,14 @@ private fun LegacySidebarScaffold(
     // Bumped on every key event the drawer sees so the auto-collapse timer
     // resets while the user navigates between drawer items.
     var legacyDrawerInteractionVersion by remember { mutableStateOf(0) }
+    // Leaving the menu with Right: where the focused menu row is (its middle, in window pixels), so
+    // the highlight can go to whatever is closest to the right of it once the menu has closed.
+    val drawerRowCentersY = remember { mutableMapOf<String, Float>() }
+    var focusedDrawerRowKey by remember { mutableStateOf<String?>(null) }
+    var exitProbeY by remember { mutableStateOf<Float?>(null) }
+    var exitProbeActive by remember { mutableStateOf(false) }
+    var contentTopInWindow by remember { mutableStateOf(0f) }
+    val exitProbeFocusRequester = remember { FocusRequester() }
 
 
     BackHandler(enabled = currentRoute in rootRoutes && drawerState.currentValue == DrawerValue.Closed) {
@@ -1945,6 +1990,23 @@ private fun LegacySidebarScaffold(
         pendingContentFocusTransfer = false
     }
 
+    // Left the menu with Right: a one-pixel marker at the height of the row you were on takes the
+    // highlight for a moment and moves it right, so it lands on the closest thing there (a card, a
+    // poster or a button) instead of wherever the page starts. Nothing there: the page's own default.
+    LaunchedEffect(drawerState.currentValue, exitProbeY) {
+        if (exitProbeY == null || drawerState.currentValue != DrawerValue.Closed) return@LaunchedEffect
+        repeat(2) { withFrameNanos { } }
+        exitProbeActive = true
+        withFrameNanos { }
+        val moved = runCatching {
+            exitProbeFocusRequester.requestFocus()
+            focusManager.moveFocus(if (isRtl) FocusDirection.Left else FocusDirection.Right)
+        }.getOrDefault(false)
+        if (!moved) runCatching { contentFocusRequester.requestFocus() }
+        exitProbeActive = false
+        exitProbeY = null
+    }
+
     LaunchedEffect(drawerState.currentValue, selectedDrawerRoute, showSidebar, pendingSidebarFocusRequest) {
         if (!showSidebar || !pendingSidebarFocusRequest || drawerState.currentValue != DrawerValue.Open) {
             return@LaunchedEffect
@@ -1980,6 +2042,17 @@ private fun LegacySidebarScaffold(
                         .width(drawerWidth)
                         .background(NuvioTheme.colors.Background)
                         .padding(NuvioTheme.spacing.card.outer)
+                        // Focus entering the menu (the drawer grabs it when it opens) goes straight to
+                        // the page you're on, not first to the top row: no highlight flashing on the
+                        // profile picture and then moving.
+                        .focusProperties {
+                            enter = {
+                                val route = selectedDrawerRoute?.takeIf { r -> drawerItems.any { it.route == r } }
+                                    ?: drawerItems.firstOrNull()?.route
+                                route?.let { drawerItemFocusRequesters[it] } ?: FocusRequester.Default
+                            }
+                        }
+                        .focusGroup()
                         .selectableGroup()
                         .onPreviewKeyEvent { keyEvent ->
                             if (keyEvent.type == KeyEventType.KeyDown) {
@@ -1987,6 +2060,9 @@ private fun LegacySidebarScaffold(
                             }
                             val closeKey = if (isRtl) Key.DirectionLeft else Key.DirectionRight
                             if (keyEvent.key == closeKey && keyEvent.type == KeyEventType.KeyDown) {
+                                // Remember the row's height first: the closed menu then hands the
+                                // highlight to whatever is closest to the right of it.
+                                exitProbeY = focusedDrawerRowKey?.let { drawerRowCentersY[it] }
                                 drawerState.setValue(DrawerValue.Closed)
                                 pendingContentFocusTransfer = false
                                 true
@@ -2002,13 +2078,35 @@ private fun LegacySidebarScaffold(
                         label = "legacySidebarItemWidth"
                     )
 
+                    // "Clock Always Shown": the time at the top left, above the profile picture, open or
+                    // closed, centred over the page icons. Its own element, so opening the menu leaves it be.
+                    if (showClock && !sidebarCollapsed) {
+                        SidebarClock(
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(top = 8.dp)
+                                // Centred on the icon column: icons sit 13dp into each row, rows sit md in.
+                                .offset(x = NuvioTheme.spacing.md + 13.dp + NuvioComponents.tokens.sidebar.iconSize / 2)
+                                .layout { measurable, constraints ->
+                                    val p = measurable.measure(constraints.copy(minWidth = 0))
+                                    layout(p.width, p.height) { p.place(-p.width / 2, 0) }
+                                }
+                        )
+                    }
                     if (showProfileWhenClosed && !sidebarCollapsed && activeProfileName.isNotEmpty()) {
                         // "Profile Picture Always Shown": one picture, in the same place open or closed,
-                        // lined up with the page icons below. Opening the menu only brings in the name
-                        // (and makes the row selectable: it opens the profile picker).
-                        val avatarSize = NuvioTheme.sizes.sidebar.leadingVisual
+                        // centred on the page icons below. Closed it's 10% smaller and grows smoothly as
+                        // the menu opens; opening only brings in the name (and makes the row selectable:
+                        // it opens the profile picker).
+                        val fullAvatarSize = NuvioTheme.sizes.sidebar.leadingVisual
+                        val avatarSize by animateDpAsState(
+                            targetValue = if (isExpanded) fullAvatarSize else fullAvatarSize * 0.9f,
+                            animationSpec = tween(durationMillis = NuvioMotion.tokens.durations.fast, easing = NuvioMotion.tokens.easings.standard),
+                            label = "legacySidebarProfileSize"
+                        )
                         val iconSize = NuvioComponents.tokens.sidebar.iconSize
                         val avatarStart = 13.dp + (iconSize - avatarSize) / 2
+                        val fullAvatarStart = 13.dp + (iconSize - fullAvatarSize) / 2
                         var isProfileFocused by remember { mutableStateOf(false) }
                         Column(
                             modifier = Modifier
@@ -2025,8 +2123,12 @@ private fun LegacySidebarScaffold(
                                         color = if (isProfileFocused && isExpanded) NuvioTheme.colors.FocusBackground else Color.Transparent,
                                         shape = NuvioTheme.shapes.navItem
                                     )
+                                    .onGloballyPositioned { c -> drawerRowCentersY[PROFILE_ROW_KEY] = c.positionInWindow().y + c.size.height / 2f }
                                     .focusProperties { canFocus = isExpanded }
-                                    .onFocusChanged { isProfileFocused = it.isFocused }
+                                    .onFocusChanged {
+                                        isProfileFocused = it.isFocused
+                                        if (it.isFocused) focusedDrawerRowKey = PROFILE_ROW_KEY
+                                    }
                                     .clickable(enabled = isExpanded) {
                                         onSwitchProfile()
                                         drawerState.setValue(DrawerValue.Closed)
@@ -2043,8 +2145,9 @@ private fun LegacySidebarScaffold(
                                     imageCrossfade = false
                                 )
                                 if (isExpanded) {
-                                    // The name starts where the page labels below do.
-                                    Spacer(modifier = Modifier.width((54.dp - avatarStart - avatarSize).coerceAtLeast(NuvioTheme.spacing.sm)))
+                                    // The name starts where the page labels below do (fixed, so it
+                                    // doesn't slide while the picture grows).
+                                    Spacer(modifier = Modifier.width((54.dp - fullAvatarStart - fullAvatarSize).coerceAtLeast(NuvioTheme.spacing.sm) + (fullAvatarSize - avatarSize) / 2))
                                     Text(
                                         text = activeProfileName,
                                         color = if (isProfileFocused) NuvioTheme.colors.TextPrimary else NuvioTheme.colors.TextSecondary,
@@ -2158,6 +2261,10 @@ private fun LegacySidebarScaffold(
                                     modifier = Modifier.focusRequester(
                                         drawerItemFocusRequesters.getValue(item.route)
                                     )
+                                        // Where this row is and whether it has the highlight: Right
+                                        // leaves the menu towards whatever is closest at this height.
+                                        .onGloballyPositioned { c -> drawerRowCentersY[item.route] = c.positionInWindow().y + c.size.height / 2f }
+                                        .onFocusChanged { if (it.hasFocus) focusedDrawerRowKey = item.route }
                                         // Live TV fork: Up / Down go to the item above / below,
                                         // across the gap above Settings too (with fewer pages in
                                         // the menu, Down from the last one landed on the page).
@@ -2232,6 +2339,7 @@ private fun LegacySidebarScaffold(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .onGloballyPositioned { contentTopInWindow = it.positionInWindow().y }
                 .onPreviewKeyEvent { keyEvent ->
                     // Long-press Back on a root route directly opens the sidebar,
                     // bypassing the "scroll row to start" BackHandler in home content.
@@ -2297,6 +2405,19 @@ private fun LegacySidebarScaffold(
                     discoverIsRoot = Screen.Discover.route in rootRoutes,
                     liveTvIsRoot = Screen.LiveTv.route in rootRoutes,
                     recordingsIsRoot = Screen.Recordings.route in rootRoutes
+                )
+            }
+            // The one-pixel marker that hands the highlight on when the menu is left with Right
+            // (see exitProbeY): only there for that moment, at the height of the row you were on.
+            val probeY = exitProbeY
+            if (exitProbeActive && probeY != null) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopStart)
+                        .offset { IntOffset(0, (probeY - contentTopInWindow).roundToInt().coerceAtLeast(0)) }
+                        .size(1.dp)
+                        .focusRequester(exitProbeFocusRequester)
+                        .focusable()
                 )
             }
         }

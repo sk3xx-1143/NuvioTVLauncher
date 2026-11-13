@@ -240,6 +240,12 @@ fun SideMenuSettingsContent(initialFocusRequester: FocusRequester? = null) {
                         onToggle = { update { it.copy(sideMenuProfile = !it.sideMenuProfile) } }
                     )
                     SettingsToggleRow(
+                        title = "Clock Always Shown",
+                        subtitle = "The current time at the top left of the menu, above the profile picture, also while the menu is closed.",
+                        checked = s.sideMenuClock,
+                        onToggle = { update { it.copy(sideMenuClock = !it.sideMenuClock) } }
+                    )
+                    SettingsToggleRow(
                         title = "Line Above Live TV",
                         subtitle = "The thin line between Nuvio's pages and the Live TV pages. Off: the pages sit a little closer together.",
                         checked = s.sideMenuLine,

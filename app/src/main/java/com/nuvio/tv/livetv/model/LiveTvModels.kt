@@ -419,6 +419,8 @@ data class LiveTvSettings(
      * with only one profile (selecting it opens the profile picker).
      */
     val sideMenuProfile: Boolean = false,
+    /** The current time always at the top left of the side menu, above the profile picture. */
+    val sideMenuClock: Boolean = false,
     /** Calendar: your shows' next episodes in Home's Upcoming row. */
     val calendarUpcomingRow: Boolean = true,
     /** Calendar: a "new episode" card in Continue Watching for shows you rang the bell on. */
