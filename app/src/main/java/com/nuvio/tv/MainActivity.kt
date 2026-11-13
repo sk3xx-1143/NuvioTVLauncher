@@ -1875,7 +1875,7 @@ private fun SidebarFocusRecoveryEffect(
     }
 }
 
-@OptIn(ExperimentalTvMaterial3Api::class)
+@OptIn(ExperimentalTvMaterial3Api::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun LegacySidebarScaffold(
     longPressBackHeld: MutableState<Boolean>,
