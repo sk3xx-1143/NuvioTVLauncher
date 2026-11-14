@@ -156,3 +156,11 @@
 # still optimised), so a crash or freeze report names the real screen and function instead
 # of scrambled letters like "za.q2.f".
 -keep,allowshrinking,allowoptimization class com.nuvio.tv.** { *; }
+
+# Release builds: leave out debug and verbose logging. There are hundreds of these calls, some on
+# hot paths (Home rows, playback), and nothing in the app reads them back. Info, warnings and
+# errors stay, so logcat still has what a bug report needs.
+-assumenosideeffects class android.util.Log {
+    public static int d(...);
+    public static int v(...);
+}

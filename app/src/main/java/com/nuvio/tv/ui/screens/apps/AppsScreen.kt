@@ -18,14 +18,17 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -37,10 +40,15 @@ import com.nuvio.tv.core.apps.InstalledAppsViewModel
 import com.nuvio.tv.ui.components.InstalledAppCard
 import com.nuvio.tv.ui.theme.NuvioTheme
 
-/** The Apps page: every app on the device, in a grid. OK opens one; long-press opens its system page. */
+/**
+ * The Apps page: the apps on the device, in a grid, without the ones this profile hid from it (the gear
+ * panel's Apps on Home still lists those). OK opens one; long-press opens its menu.
+ */
 @Composable
 fun AppsScreen(viewModel: InstalledAppsViewModel = hiltViewModel()) {
-    val apps by viewModel.apps.collectAsStateWithLifecycle()
+    val apps by viewModel.pageApps.collectAsStateWithLifecycle()
+    val allApps by viewModel.apps.collectAsStateWithLifecycle()
+    val hiddenCount = allApps.count { it.hiddenOnPage }
     val first = remember { FocusRequester() }
     var actionsFor by remember { mutableStateOf<com.nuvio.tv.core.apps.InstalledApp?>(null) }
     val move = rememberAppMoveState()
@@ -50,6 +58,13 @@ fun AppsScreen(viewModel: InstalledAppsViewModel = hiltViewModel()) {
     val context = LocalContext.current
     LaunchedEffect(apps.isNotEmpty()) {
         if (apps.isNotEmpty()) runCatching { first.requestFocus() }
+    }
+    // Hiding an app from this page takes away the card that had focus: put focus back on the first app.
+    var refocus by remember { mutableIntStateOf(0) }
+    LaunchedEffect(refocus) {
+        if (refocus == 0) return@LaunchedEffect
+        repeat(2) { withFrameNanos { } }
+        runCatching { first.requestFocus() }
     }
     Column(
         Modifier
@@ -61,8 +76,17 @@ fun AppsScreen(viewModel: InstalledAppsViewModel = hiltViewModel()) {
             style = MaterialTheme.typography.headlineMedium,
             color = NuvioTheme.colors.TextPrimary
         )
+        if (hiddenCount > 0) {
+            Text(
+                text = pluralStringResource(R.plurals.apps_hidden_note, hiddenCount, hiddenCount),
+                style = MaterialTheme.typography.bodyMedium,
+                color = NuvioTheme.colors.TextSecondary,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
         if (apps.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            // Every app hidden: the note above says where they are.
+            if (hiddenCount == 0) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
                     text = stringResource(R.string.apps_empty),
                     style = MaterialTheme.typography.bodyLarge,
@@ -89,7 +113,7 @@ fun AppsScreen(viewModel: InstalledAppsViewModel = hiltViewModel()) {
                     ) { delta ->
                         val carried = apps.firstOrNull { it.packageName == move.carrying } ?: return@appMoveKeys
                         val step = clampedStep(apps.indexOf(carried), delta, apps.lastIndex)
-                        if (step != 0) viewModel.moveAmongAll(carried, step)
+                        if (step != 0) viewModel.moveOnPage(carried, step)
                     }
             ) {
                 items(apps, key = { it.packageName }) { app ->
@@ -122,6 +146,7 @@ fun AppsScreen(viewModel: InstalledAppsViewModel = hiltViewModel()) {
             onRename = { viewModel.rename(app, it) },
             iconChooser = viewModel.iconChooser(app),
             onSetHidden = { viewModel.setHidden(app, it) },
+            onSetHiddenOnPage = { viewModel.setHiddenOnPage(app, it); if (it) refocus++ },
             onDismiss = { actionsFor = null }
         )
     }

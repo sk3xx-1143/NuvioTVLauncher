@@ -2,6 +2,7 @@
 
 package com.nuvio.tv.ui.screens.home
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.Row
 import com.nuvio.tv.ui.theme.NuvioTheme
 
@@ -514,6 +515,9 @@ internal fun ModernRowSection(
     // Launcher: the Apps row. Long-press on an app opens its menu (open, rename, move, app info).
     val appsViewModel: com.nuvio.tv.core.apps.InstalledAppsViewModel? =
         if (row.key == com.nuvio.tv.core.apps.INSTALLED_APPS_CATALOG_KEY) androidx.hilt.navigation.compose.hiltViewModel() else null
+    // Moves are worked out from the view model's app list, so keep it current while this row shows
+    // (nothing else here watches it, and an unwatched list stays empty, so nothing moved).
+    appsViewModel?.homeApps?.collectAsStateWithLifecycle()
     var contextMenuApp by remember { mutableStateOf<com.nuvio.tv.core.apps.InstalledApp?>(null) }
     val appMove = com.nuvio.tv.ui.components.rememberAppMoveState()
     val appMoveContext = androidx.compose.ui.platform.LocalContext.current
@@ -532,6 +536,7 @@ internal fun ModernRowSection(
             onRename = { appsViewModel.rename(app, it) },
             iconChooser = appsViewModel.iconChooser(app),
             onSetHidden = { appsViewModel.setHidden(app, it) },
+            onSetHiddenOnPage = { appsViewModel.setHiddenOnPage(app, it) },
             onDismiss = { contextMenuApp = null }
         )
     }

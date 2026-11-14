@@ -3653,6 +3653,14 @@
     <string name="button_mapper_restore_home_defaults">Restore Default Home Assignments</string>
     <string name="app_action_hide_from_home">Hide from Home</string>
     <string name="app_action_show_on_home">Show on Home</string>
+    <string name="app_action_hide_from_page">Hide from Apps page</string>
+    <string name="app_action_show_on_page">Show on Apps page</string>
+    <string name="app_badge_hidden_home">Hidden from the Home row</string>
+    <string name="app_badge_hidden_page">Hidden from the Apps page</string>
+    <plurals name="apps_hidden_note">
+        <item quantity="one">%1$d app is hidden here. Find it under the gear on Home → Apps.</item>
+        <item quantity="other">%1$d apps are hidden here. Find them under the gear on Home → Apps.</item>
+    </plurals>
     <string name="app_menu_icon_default">Default (follows the icon pack)</string>
     <string name="app_menu_icon_system">System icon (ignore the icon pack)</string>
     <string name="app_menu_icon_packs">Icon packs</string>

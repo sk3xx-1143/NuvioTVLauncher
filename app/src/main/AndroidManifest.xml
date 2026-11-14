@@ -11,6 +11,10 @@
         <intent>
             <action android:name="android.settings.HOME_SETTINGS" />
         </intent>
+        <!-- Launcher: finds the system's Settings app, which the app lists leave out (the gear opens it). -->
+        <intent>
+            <action android:name="android.settings.SETTINGS" />
+        </intent>
         <!-- Launcher: installed apps are listed through these, and the Home chooser needs the HOME query. -->
         <intent>
             <action android:name="android.intent.action.MAIN" />

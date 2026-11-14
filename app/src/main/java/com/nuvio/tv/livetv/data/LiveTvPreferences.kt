@@ -142,6 +142,8 @@ class LiveTvPreferences @Inject constructor(
         val calendarInMenu = booleanPreferencesKey("calendar_in_menu")
         val sideMenuLine = booleanPreferencesKey("side_menu_line")
         val sideMenuFit = booleanPreferencesKey("side_menu_fit")
+        val sideMenuProfile = booleanPreferencesKey("side_menu_profile")
+        val sideMenuClock = booleanPreferencesKey("side_menu_clock")
         val calendarUpcomingRow = booleanPreferencesKey("calendar_upcoming_row")
         val calendarNewEpisodeCards = booleanPreferencesKey("calendar_new_episode_cards")
         val calendarHideSpoilers = booleanPreferencesKey("calendar_hide_spoilers")
@@ -463,6 +465,8 @@ class LiveTvPreferences @Inject constructor(
             calendarInMenu = p[Keys.calendarInMenu] ?: d.calendarInMenu,
             sideMenuLine = p[Keys.sideMenuLine] ?: d.sideMenuLine,
             sideMenuFit = p[Keys.sideMenuFit] ?: d.sideMenuFit,
+            sideMenuProfile = p[Keys.sideMenuProfile] ?: d.sideMenuProfile,
+            sideMenuClock = p[Keys.sideMenuClock] ?: d.sideMenuClock,
             calendarUpcomingRow = p[Keys.calendarUpcomingRow] ?: d.calendarUpcomingRow,
             calendarNewEpisodeCards = p[Keys.calendarNewEpisodeCards] ?: d.calendarNewEpisodeCards,
             calendarHideSpoilers = p[Keys.calendarHideSpoilers] ?: d.calendarHideSpoilers,
@@ -800,6 +804,8 @@ class LiveTvPreferences @Inject constructor(
         p[Keys.calendarInMenu] = s.calendarInMenu
         p[Keys.sideMenuLine] = s.sideMenuLine
         p[Keys.sideMenuFit] = s.sideMenuFit
+        p[Keys.sideMenuProfile] = s.sideMenuProfile
+        p[Keys.sideMenuClock] = s.sideMenuClock
         p[Keys.calendarUpcomingRow] = s.calendarUpcomingRow
         p[Keys.calendarNewEpisodeCards] = s.calendarNewEpisodeCards
         p[Keys.calendarHideSpoilers] = s.calendarHideSpoilers

@@ -181,7 +181,8 @@ fun HomeSettingsDrawer(
                                         onLongClick = { actionsFor = app },
                                         modifier = if (app == apps.first()) Modifier.focusRequester(first) else Modifier,
                                         moving = move.carrying == app.packageName,
-                                        width = 158.dp
+                                        width = 158.dp,
+                                        showHiddenBadges = true
                                     )
                                 }
                             }
@@ -204,6 +205,7 @@ fun HomeSettingsDrawer(
             onRename = { appsViewModel.rename(app, it) },
                 iconChooser = appsViewModel.iconChooser(app),
                 onSetHidden = { appsViewModel.setHidden(app, it) },
+                onSetHiddenOnPage = { appsViewModel.setHiddenOnPage(app, it) },
                 onDismiss = { actionsFor = null },
                 onHome = onDismiss
             )

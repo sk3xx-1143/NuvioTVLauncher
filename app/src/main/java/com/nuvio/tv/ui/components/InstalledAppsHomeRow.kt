@@ -89,6 +89,7 @@ fun InstalledAppsHomeRow(
             onRename = { viewModel.rename(app, it) },
             iconChooser = viewModel.iconChooser(app),
             onSetHidden = { viewModel.setHidden(app, it) },
+            onSetHiddenOnPage = { viewModel.setHiddenOnPage(app, it) },
             onDismiss = { actionsFor = null }
         )
     }

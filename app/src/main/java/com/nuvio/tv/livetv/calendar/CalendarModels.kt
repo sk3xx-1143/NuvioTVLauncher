@@ -309,6 +309,11 @@ object SideMenuPages {
     const val DISCOVER = "discover"
     /** Launcher: every installed app (and the Apps row on Home). */
     const val APPS = "apps"
+    /**
+     * Not a movable page: only kept in the hidden list, for the menu's Settings button. Off only
+     * while Home is in the menu, since Settings then still opens from the gear at the top of Home.
+     */
+    const val SETTINGS = "settings"
 
     val DEFAULT_ORDER = listOf(HOME, DISCOVER, SEARCH, LIBRARY, APPS, CALENDAR, LIVE_TV, SPORTS, ON_DEMAND, RECORDINGS)
 
